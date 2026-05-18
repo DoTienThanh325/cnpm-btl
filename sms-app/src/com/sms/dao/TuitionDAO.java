@@ -1,69 +1,83 @@
 package com.sms.dao;
 
+import com.sms.db.DBConnection;
 import com.sms.entity.Student;
 import com.sms.entity.Tuition;
-import java.util.*;
+
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class TuitionDAO {
-    private static List<Tuition> tuitions = new ArrayList<>();
-    private static int nextId = 6;
-
-    static {
-        StudentDAO sDao = new StudentDAO();
-        Student sv01 = sDao.getById(5);
-        Student sv02 = sDao.getById(6);
-        Student sv03 = sDao.getById(7);
-        Student sv04 = sDao.getById(8);
-
-        tuitions.add(new Tuition(1, sv01, "2024-2", 15, 850000, 12750000, "đã đóng"));
-        tuitions.add(new Tuition(2, sv02, "2024-2", 12, 850000, 0, "chưa đóng"));
-        tuitions.add(new Tuition(3, sv03, "2024-2", 18, 850000, 15300000, "đã đóng"));
-        tuitions.add(new Tuition(4, sv04, "2024-2", 14, 850000, 0, "miễn giảm"));
-    }
 
     public List<Tuition> getAllTuitions() {
-        return new ArrayList<>(tuitions);
+        return loadList(null, -1);
     }
 
     public List<Tuition> getByStudent(int studentId) {
-        List<Tuition> result = new ArrayList<>();
-        for (Tuition t : tuitions) {
-            if (t.getStudent().getId() == studentId) result.add(t);
-        }
-        return result;
+        return loadList("student_id = ?", studentId);
     }
 
     public boolean updateTuition(Tuition tuition) {
-        for (int i = 0; i < tuitions.size(); i++) {
-            if (tuitions.get(i).getId() == tuition.getId()) {
-                tuitions.set(i, tuition);
-                return true;
-            }
+        String sql = "UPDATE tuitions SET semester = ?, registered_credits = ?, price_per_credit = ?, " +
+                "paid = ?, status = ? WHERE id = ?";
+        try (Connection c = DBConnection.get();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, tuition.getSemester());
+            ps.setInt(2, tuition.getRegisteredCredits());
+            ps.setDouble(3, tuition.getPricePerCredit());
+            ps.setDouble(4, tuition.getPaid());
+            ps.setString(5, tuition.getStatus());
+            ps.setInt(6, tuition.getId());
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("updateTuition failed", e);
         }
-        return false;
     }
 
-    // miễn giảm per spec
     public boolean applyDiscount(int tuitionId, String reason) {
-        for (Tuition t : tuitions) {
-            if (t.getId() == tuitionId) {
-                t.setStatus("miễn giảm");
-                t.setPaid(0);
-                return true;
-            }
+        String sql = "UPDATE tuitions SET status = 'miễn giảm', paid = 0 WHERE id = ?";
+        try (Connection c = DBConnection.get();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, tuitionId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("applyDiscount failed", e);
         }
-        return false;
     }
 
-    // đóng học phí per spec
     public boolean payTuition(int tuitionId) {
-        for (Tuition t : tuitions) {
-            if (t.getId() == tuitionId) {
-                t.setPaid(t.getTotalFee());
-                t.setStatus("đã đóng");
-                return true;
-            }
+        String sql = "UPDATE tuitions SET paid = registered_credits * price_per_credit, status = 'đã đóng' WHERE id = ?";
+        try (Connection c = DBConnection.get();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, tuitionId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("payTuition failed", e);
         }
-        return false;
+    }
+
+    private List<Tuition> loadList(String whereClause, int param) {
+        String sql = "SELECT id, student_id, semester, registered_credits, price_per_credit, paid, status " +
+                "FROM tuitions" + (whereClause == null ? "" : " WHERE " + whereClause) + " ORDER BY id";
+        List<Tuition> out = new ArrayList<>();
+        try (Connection c = DBConnection.get();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            if (whereClause != null) ps.setInt(1, param);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) out.add(hydrate(rs));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("loadList tuitions failed", e);
+        }
+        return out;
+    }
+
+    private Tuition hydrate(ResultSet rs) throws SQLException {
+        StudentDAO sDao = new StudentDAO();
+        Student s = sDao.getById(rs.getInt("student_id"));
+        return new Tuition(rs.getInt("id"), s, rs.getString("semester"),
+                rs.getInt("registered_credits"), rs.getDouble("price_per_credit"),
+                rs.getDouble("paid"), rs.getString("status"));
     }
 }

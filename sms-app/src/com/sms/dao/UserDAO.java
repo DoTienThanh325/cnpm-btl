@@ -1,64 +1,114 @@
 package com.sms.dao;
 
+import com.sms.db.DBConnection;
 import com.sms.entity.User;
+
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class UserDAO {
-    private static List<User> users = new ArrayList<>();
-    private static int nextId = 10;
-
-    static {
-        users.add(new User(1, "admin", "admin123", "Quản trị viên", "ADMIN", "active"));
-        users.add(new User(2, "pdt01", "pdt123", "Nguyễn Văn Phòng", "PDT", "active"));
-        users.add(new User(3, "gv01", "gv123", "Nguyễn Văn A", "TEACHER", "active"));
-        users.add(new User(4, "gv02", "gv123", "Trần Thị B", "TEACHER", "active"));
-        users.add(new User(5, "sv01", "sv123", "Phạm Quang Vinh", "STUDENT", "active"));
-    }
 
     public User checkLogin(String username, String password) {
-        for (User u : users) {
-            if (u.getUsername().equals(username) && u.getPassword().equals(password)
-                    && "active".equals(u.getStatus())) {
-                return u;
+        String sql = "SELECT id, username, password, name, role, status FROM users " +
+                "WHERE username = ? AND password = ? AND status = 'active'";
+        try (Connection c = DBConnection.get();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, username);
+            ps.setString(2, password);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? map(rs) : null;
             }
+        } catch (SQLException e) {
+            throw new RuntimeException("checkLogin failed", e);
         }
-        return null;
     }
 
     public List<User> getAllUsers() {
-        return new ArrayList<>(users);
+        List<User> out = new ArrayList<>();
+        String sql = "SELECT id, username, password, name, role, status FROM users ORDER BY id";
+        try (Connection c = DBConnection.get();
+             PreparedStatement ps = c.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) out.add(map(rs));
+        } catch (SQLException e) {
+            throw new RuntimeException("getAllUsers failed", e);
+        }
+        return out;
     }
 
     public List<User> searchUsers(String keyword) {
-        List<User> result = new ArrayList<>();
-        String kw = keyword.toLowerCase().trim();
-        for (User u : users) {
-            if (u.getName().toLowerCase().contains(kw) || u.getUsername().toLowerCase().contains(kw)
-                    || String.valueOf(u.getId()).contains(kw)) {
-                result.add(u);
+        String kw = "%" + keyword.toLowerCase().trim() + "%";
+        String sql = "SELECT id, username, password, name, role, status FROM users " +
+                "WHERE LOWER(name) LIKE ? OR LOWER(username) LIKE ? OR CAST(id AS CHAR) LIKE ? " +
+                "ORDER BY id";
+        List<User> out = new ArrayList<>();
+        try (Connection c = DBConnection.get();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, kw);
+            ps.setString(2, kw);
+            ps.setString(3, kw);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) out.add(map(rs));
             }
+        } catch (SQLException e) {
+            throw new RuntimeException("searchUsers failed", e);
         }
-        return result;
+        return out;
     }
 
     public boolean addUser(User user) {
-        for (User u : users) {
-            if (u.getUsername().equals(user.getUsername())) return false;
+        String check = "SELECT 1 FROM users WHERE username = ?";
+        String insert = "INSERT INTO users (username, password, name, role, status) VALUES (?, ?, ?, ?, ?)";
+        try (Connection c = DBConnection.get()) {
+            try (PreparedStatement ps = c.prepareStatement(check)) {
+                ps.setString(1, user.getUsername());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) return false;
+                }
+            }
+            try (PreparedStatement ps = c.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)) {
+                ps.setString(1, user.getUsername());
+                ps.setString(2, user.getPassword());
+                ps.setString(3, user.getName());
+                ps.setString(4, user.getRole());
+                ps.setString(5, user.getStatus() == null ? "active" : user.getStatus());
+                ps.executeUpdate();
+                try (ResultSet keys = ps.getGeneratedKeys()) {
+                    if (keys.next()) user.setId(keys.getInt(1));
+                }
+            }
+            return true;
+        } catch (SQLException e) {
+            throw new RuntimeException("addUser failed", e);
         }
-        user.setId(nextId++);
-        users.add(user);
-        return true;
     }
 
     public boolean deleteUser(int id) {
-        return users.removeIf(u -> u.getId() == id);
+        String sql = "DELETE FROM users WHERE id = ?";
+        try (Connection c = DBConnection.get();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("deleteUser failed", e);
+        }
     }
 
     public boolean updateUserRole(int id, String role) {
-        for (User u : users) {
-            if (u.getId() == id) { u.setRole(role); return true; }
+        String sql = "UPDATE users SET role = ? WHERE id = ?";
+        try (Connection c = DBConnection.get();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, role);
+            ps.setInt(2, id);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("updateUserRole failed", e);
         }
-        return false;
+    }
+
+    static User map(ResultSet rs) throws SQLException {
+        return new User(rs.getInt("id"), rs.getString("username"), rs.getString("password"),
+                rs.getString("name"), rs.getString("role"), rs.getString("status"));
     }
 }
