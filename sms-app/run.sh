@@ -1,4 +1,4 @@
 #!/bin/bash
 # Run script for SMS Java Swing application
 cd "$(dirname "$0")"
-java -cp out com.sms.Main
+java -cp "out:lib/*" com.sms.Main

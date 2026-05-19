@@ -2,38 +2,63 @@ package com.sms.dao;
 
 import com.sms.entity.Faculty;
 import com.sms.entity.Teacher;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class TeacherDAO {
-    private static List<Teacher> teachers = new ArrayList<>();
-    private static int nextId = 5;
-
-    static {
-        FacultyDAO fDao = new FacultyDAO();
-        Faculty cntt = fDao.getById(1);
-        Faculty dtvt = fDao.getById(2);
-        teachers.add(new Teacher(3, "gv01", "gv123", "Nguyễn Văn A", "active", cntt, "nva@ptit.edu.vn", "0901000001"));
-        teachers.add(new Teacher(4, "gv02", "gv123", "Trần Thị B", "active", cntt, "ttb@ptit.edu.vn", "0901000002"));
-        teachers.add(new Teacher(6, "gv03", "gv123", "Lê Văn C", "active", dtvt, "lvc@ptit.edu.vn", "0901000003"));
-    }
-
-    // per spec: getAllTeacher()
+public class TeacherDAO extends DAO {
     public List<Teacher> getAllTeacher() {
-        return new ArrayList<>(teachers);
+        List<Teacher> teachers = new ArrayList<>();
+        String sql = baseSql() + " ORDER BY u.id";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) teachers.add(mapTeacher(rs));
+            return teachers;
+        } catch (SQLException e) {
+            throw dbError(e);
+        }
     }
 
     public Teacher getById(int id) {
-        for (Teacher t : teachers) if (t.getId() == id) return t;
-        return null;
+        String sql = baseSql() + " WHERE u.id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? mapTeacher(rs) : null;
+            }
+        } catch (SQLException e) {
+            throw dbError(e);
+        }
     }
 
     public List<Teacher> searchTeachers(String keyword) {
-        List<Teacher> result = new ArrayList<>();
-        String kw = keyword.toLowerCase().trim();
-        for (Teacher t : teachers) {
-            if (t.getName().toLowerCase().contains(kw)) result.add(t);
+        List<Teacher> teachers = new ArrayList<>();
+        String sql = baseSql() + " WHERE LOWER(u.name) LIKE ? ORDER BY u.id";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, "%" + keyword.toLowerCase().trim() + "%");
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) teachers.add(mapTeacher(rs));
+            }
+            return teachers;
+        } catch (SQLException e) {
+            throw dbError(e);
         }
-        return result;
+    }
+
+    private String baseSql() {
+        return "SELECT u.id, u.username, u.password, u.name, u.status, t.email, t.phone, "
+                + "f.id faculty_id, f.code faculty_code, f.name faculty_name, f.head "
+                + "FROM teachers t JOIN users u ON u.id = t.user_id "
+                + "JOIN faculties f ON f.id = t.faculty_id";
+    }
+
+    static Teacher mapTeacher(ResultSet rs) throws SQLException {
+        Faculty faculty = new Faculty(rs.getInt("faculty_id"), rs.getString("faculty_code"),
+                rs.getString("faculty_name"), rs.getString("head"));
+        return new Teacher(rs.getInt("id"), rs.getString("username"), rs.getString("password"),
+                rs.getString("name"), rs.getString("status"), faculty, rs.getString("email"), rs.getString("phone"));
     }
 }

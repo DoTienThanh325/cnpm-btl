@@ -1,30 +1,48 @@
 package com.sms.dao;
 
-import com.sms.entity.Faculty;
 import com.sms.entity.Major;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MajorDAO {
-    private static List<Major> majors = new ArrayList<>();
-    private static int nextId = 4;
-    private static FacultyDAO facultyDAO = new FacultyDAO();
-
-    static {
-        Faculty cntt = new FacultyDAO().getById(1);
-        Faculty dtvt = new FacultyDAO().getById(2);
-        Faculty ktkt = new FacultyDAO().getById(3);
-        majors.add(new Major(1, "CNPM", "Công nghệ phần mềm", cntt));
-        majors.add(new Major(2, "HTTT", "Hệ thống thông tin", cntt));
-        majors.add(new Major(3, "DTVT", "Điện tử viễn thông", dtvt));
-    }
-
+public class MajorDAO extends DAO {
     public List<Major> getAllMajors() {
-        return new ArrayList<>(majors);
+        List<Major> majors = new ArrayList<>();
+        String sql = "SELECT m.id, m.code, m.name, f.id faculty_id, f.code faculty_code, f.name faculty_name, f.head "
+                + "FROM majors m JOIN faculties f ON f.id = m.faculty_id ORDER BY m.id";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) majors.add(mapMajor(rs));
+            return majors;
+        } catch (SQLException e) {
+            throw dbError(e);
+        }
     }
 
     public Major getById(int id) {
-        for (Major m : majors) if (m.getId() == id) return m;
-        return null;
+        String sql = "SELECT m.id, m.code, m.name, f.id faculty_id, f.code faculty_code, f.name faculty_name, f.head "
+                + "FROM majors m JOIN faculties f ON f.id = m.faculty_id WHERE m.id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? mapMajor(rs) : null;
+            }
+        } catch (SQLException e) {
+            throw dbError(e);
+        }
+    }
+
+    static Major mapMajor(ResultSet rs) throws SQLException {
+        return new Major(
+                rs.getInt("id"),
+                rs.getString("code"),
+                rs.getString("name"),
+                new com.sms.entity.Faculty(
+                        rs.getInt("faculty_id"),
+                        rs.getString("faculty_code"),
+                        rs.getString("faculty_name"),
+                        rs.getString("head")));
     }
 }

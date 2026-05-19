@@ -1,64 +1,102 @@
 package com.sms.dao;
 
 import com.sms.entity.User;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class UserDAO {
-    private static List<User> users = new ArrayList<>();
-    private static int nextId = 10;
-
-    static {
-        users.add(new User(1, "admin", "admin123", "Quản trị viên", "ADMIN", "active"));
-        users.add(new User(2, "pdt01", "pdt123", "Nguyễn Văn Phòng", "PDT", "active"));
-        users.add(new User(3, "gv01", "gv123", "Nguyễn Văn A", "TEACHER", "active"));
-        users.add(new User(4, "gv02", "gv123", "Trần Thị B", "TEACHER", "active"));
-        users.add(new User(5, "sv01", "sv123", "Phạm Quang Vinh", "STUDENT", "active"));
-    }
-
+public class UserDAO extends DAO {
     public User checkLogin(String username, String password) {
-        for (User u : users) {
-            if (u.getUsername().equals(username) && u.getPassword().equals(password)
-                    && "active".equals(u.getStatus())) {
-                return u;
+        String sql = "SELECT id, username, password, name, role, status FROM users "
+                + "WHERE username = ? AND password = ? AND status = 'active'";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, username);
+            ps.setString(2, password);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? mapUser(rs) : null;
             }
+        } catch (SQLException e) {
+            throw dbError(e);
         }
-        return null;
     }
 
     public List<User> getAllUsers() {
-        return new ArrayList<>(users);
+        List<User> users = new ArrayList<>();
+        String sql = "SELECT id, username, password, name, role, status FROM users ORDER BY id";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) users.add(mapUser(rs));
+            return users;
+        } catch (SQLException e) {
+            throw dbError(e);
+        }
     }
 
     public List<User> searchUsers(String keyword) {
-        List<User> result = new ArrayList<>();
-        String kw = keyword.toLowerCase().trim();
-        for (User u : users) {
-            if (u.getName().toLowerCase().contains(kw) || u.getUsername().toLowerCase().contains(kw)
-                    || String.valueOf(u.getId()).contains(kw)) {
-                result.add(u);
+        List<User> users = new ArrayList<>();
+        String sql = "SELECT id, username, password, name, role, status FROM users "
+                + "WHERE LOWER(name) LIKE ? OR LOWER(username) LIKE ? OR CAST(id AS CHAR) LIKE ? ORDER BY id";
+        String kw = "%" + keyword.toLowerCase().trim() + "%";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, kw);
+            ps.setString(2, kw);
+            ps.setString(3, kw);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) users.add(mapUser(rs));
             }
+            return users;
+        } catch (SQLException e) {
+            throw dbError(e);
         }
-        return result;
     }
 
     public boolean addUser(User user) {
-        for (User u : users) {
-            if (u.getUsername().equals(user.getUsername())) return false;
+        String sql = "INSERT INTO users(username, password, name, role, status) VALUES (?, ?, ?, ?, ?)";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, user.getUsername());
+            ps.setString(2, user.getPassword());
+            ps.setString(3, user.getName());
+            ps.setString(4, user.getRole());
+            ps.setString(5, user.getStatus());
+            ps.executeUpdate();
+            try (ResultSet keys = ps.getGeneratedKeys()) {
+                if (keys.next()) user.setId(keys.getInt(1));
+            }
+            return true;
+        } catch (SQLIntegrityConstraintViolationException e) {
+            return false;
+        } catch (SQLException e) {
+            throw dbError(e);
         }
-        user.setId(nextId++);
-        users.add(user);
-        return true;
     }
 
     public boolean deleteUser(int id) {
-        return users.removeIf(u -> u.getId() == id);
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement("DELETE FROM users WHERE id = ?")) {
+            ps.setInt(1, id);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw dbError(e);
+        }
     }
 
     public boolean updateUserRole(int id, String role) {
-        for (User u : users) {
-            if (u.getId() == id) { u.setRole(role); return true; }
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement("UPDATE users SET role = ? WHERE id = ?")) {
+            ps.setString(1, role);
+            ps.setInt(2, id);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw dbError(e);
         }
-        return false;
+    }
+
+    static User mapUser(ResultSet rs) throws SQLException {
+        return new User(rs.getInt("id"), rs.getString("username"), rs.getString("password"),
+                rs.getString("name"), rs.getString("role"), rs.getString("status"));
     }
 }

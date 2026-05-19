@@ -1,29 +1,39 @@
 package com.sms.dao;
 
 import com.sms.entity.Session;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SessionDAO {
-    private static List<Session> sessions = new ArrayList<>();
-    private static int nextId = 7;
-
-    static {
-        sessions.add(new Session(1, "Thứ 2", 1, 3, "A101"));
-        sessions.add(new Session(2, "Thứ 2", 4, 6, "A102"));
-        sessions.add(new Session(3, "Thứ 3", 1, 3, "B201"));
-        sessions.add(new Session(4, "Thứ 4", 4, 6, "B202"));
-        sessions.add(new Session(5, "Thứ 5", 1, 3, "C301"));
-        sessions.add(new Session(6, "Thứ 6", 4, 6, "C302"));
-    }
-
-    // per spec: getAllSession()
+public class SessionDAO extends DAO {
     public List<Session> getAllSession() {
-        return new ArrayList<>(sessions);
+        List<Session> sessions = new ArrayList<>();
+        String sql = "SELECT id, day_of_week, start_period, end_period, room FROM sessions ORDER BY id";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) sessions.add(mapSession(rs));
+            return sessions;
+        } catch (SQLException e) {
+            throw dbError(e);
+        }
     }
 
     public Session getById(int id) {
-        for (Session s : sessions) if (s.getId() == id) return s;
-        return null;
+        String sql = "SELECT id, day_of_week, start_period, end_period, room FROM sessions WHERE id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? mapSession(rs) : null;
+            }
+        } catch (SQLException e) {
+            throw dbError(e);
+        }
+    }
+
+    static Session mapSession(ResultSet rs) throws SQLException {
+        return new Session(rs.getInt("id"), rs.getString("day_of_week"),
+                rs.getInt("start_period"), rs.getInt("end_period"), rs.getString("room"));
     }
 }
