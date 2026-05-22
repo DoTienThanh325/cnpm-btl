@@ -8,9 +8,8 @@ import java.util.List;
 public class TextbookDAO extends DAO {
     public List<Textbook> getAllTextbooks() {
         List<Textbook> textbooks = new ArrayList<>();
-        String sql = "SELECT id, name, author, publish_year FROM textbooks ORDER BY id";
         try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
+             CallableStatement ps = conn.prepareCall(call("sp_get_all_textbooks", 0));
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) textbooks.add(mapTextbook(rs));
             return textbooks;
@@ -20,9 +19,8 @@ public class TextbookDAO extends DAO {
     }
 
     public Textbook getById(int id) {
-        String sql = "SELECT id, name, author, publish_year FROM textbooks WHERE id = ?";
         try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+             CallableStatement ps = conn.prepareCall(call("sp_get_textbook_by_id", 1))) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? mapTextbook(rs) : null;

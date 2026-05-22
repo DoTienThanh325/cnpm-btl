@@ -8,9 +8,8 @@ import java.util.List;
 public class FacultyDAO extends DAO {
     public List<Faculty> getAllFaculties() {
         List<Faculty> faculties = new ArrayList<>();
-        String sql = "SELECT id, code, name, head FROM faculties ORDER BY id";
         try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
+             CallableStatement ps = conn.prepareCall(call("sp_get_all_faculties", 0));
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) faculties.add(mapFaculty(rs));
             return faculties;
@@ -20,9 +19,8 @@ public class FacultyDAO extends DAO {
     }
 
     public Faculty getById(int id) {
-        String sql = "SELECT id, code, name, head FROM faculties WHERE id = ?";
         try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+             CallableStatement ps = conn.prepareCall(call("sp_get_faculty_by_id", 1))) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? mapFaculty(rs) : null;

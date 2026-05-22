@@ -8,9 +8,8 @@ import java.util.List;
 public class TuitionDAO extends DAO {
     public List<Tuition> getAllTuitions() {
         List<Tuition> tuitions = new ArrayList<>();
-        String sql = baseSql() + " ORDER BY tu.id";
         try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
+             CallableStatement ps = conn.prepareCall(call("sp_get_all_tuitions", 0));
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) tuitions.add(mapTuition(rs));
             return tuitions;
@@ -21,9 +20,8 @@ public class TuitionDAO extends DAO {
 
     public List<Tuition> getByStudent(int studentId) {
         List<Tuition> tuitions = new ArrayList<>();
-        String sql = baseSql() + " WHERE tu.student_id = ? ORDER BY tu.id";
         try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+             CallableStatement ps = conn.prepareCall(call("sp_get_tuitions_by_student", 1))) {
             ps.setInt(1, studentId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) tuitions.add(mapTuition(rs));
@@ -35,15 +33,14 @@ public class TuitionDAO extends DAO {
     }
 
     public boolean updateTuition(Tuition tuition) {
-        String sql = "UPDATE tuitions SET semester = ?, registered_credits = ?, price_per_credit = ?, paid = ?, status = ? WHERE id = ?";
         try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, tuition.getSemester());
-            ps.setInt(2, tuition.getRegisteredCredits());
-            ps.setDouble(3, tuition.getPricePerCredit());
-            ps.setDouble(4, tuition.getPaid());
-            ps.setString(5, tuition.getStatus());
-            ps.setInt(6, tuition.getId());
+             CallableStatement ps = conn.prepareCall(call("sp_update_tuition", 6))) {
+            ps.setInt(1, tuition.getId());
+            ps.setString(2, tuition.getSemester());
+            ps.setInt(3, tuition.getRegisteredCredits());
+            ps.setDouble(4, tuition.getPricePerCredit());
+            ps.setDouble(5, tuition.getPaid());
+            ps.setString(6, tuition.getStatus());
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
             throw dbError(e);
@@ -52,9 +49,8 @@ public class TuitionDAO extends DAO {
 
     public boolean applyDiscount(int tuitionId, String reason) {
         try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement("UPDATE tuitions SET status = ?, paid = 0 WHERE id = ?")) {
-            ps.setString(1, "miễn giảm");
-            ps.setInt(2, tuitionId);
+             CallableStatement ps = conn.prepareCall(call("sp_apply_tuition_discount", 1))) {
+            ps.setInt(1, tuitionId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
             throw dbError(e);
@@ -63,24 +59,12 @@ public class TuitionDAO extends DAO {
 
     public boolean payTuition(int tuitionId) {
         try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(
-                     "UPDATE tuitions SET paid = registered_credits * price_per_credit, status = ? WHERE id = ?")) {
-            ps.setString(1, "đã đóng");
-            ps.setInt(2, tuitionId);
+             CallableStatement ps = conn.prepareCall(call("sp_pay_tuition", 1))) {
+            ps.setInt(1, tuitionId);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
             throw dbError(e);
         }
-    }
-
-    private String baseSql() {
-        return "SELECT tu.id tuition_id, tu.semester, tu.registered_credits, tu.price_per_credit, tu.paid, tu.status tuition_status, "
-                + "u.id, u.username, u.password, u.name, u.status, st.mssv, st.dob, st.gender, st.address, st.email, st.phone, "
-                + "st.cohort, st.admin_class, st.student_status, "
-                + "f.id faculty_id, f.code faculty_code, f.name faculty_name, f.head, "
-                + "m.id major_id, m.code major_code, m.name major_name "
-                + "FROM tuitions tu JOIN students st ON st.user_id = tu.student_id JOIN users u ON u.id = st.user_id "
-                + "JOIN faculties f ON f.id = st.faculty_id JOIN majors m ON m.id = st.major_id";
     }
 
     private Tuition mapTuition(ResultSet rs) throws SQLException {

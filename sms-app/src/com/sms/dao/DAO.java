@@ -21,6 +21,17 @@ public abstract class DAO {
         return new RuntimeException("Database error: " + e.getMessage(), e);
     }
 
+    protected String call(String procedure, int parameterCount) {
+        StringBuilder sql = new StringBuilder("{CALL ").append(procedure).append("(");
+        for (int i = 0; i < parameterCount; i++) {
+            if (i > 0) {
+                sql.append(", ");
+            }
+            sql.append("?");
+        }
+        return sql.append(")}").toString();
+    }
+
     private String firstNonBlank(String... values) {
         for (String value : values) {
             if (value != null && !value.trim().isEmpty()) {

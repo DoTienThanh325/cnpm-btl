@@ -250,3 +250,611 @@ ALTER TABLE sessions AUTO_INCREMENT = 7;
 ALTER TABLE class_sections AUTO_INCREMENT = 5;
 ALTER TABLE grades AUTO_INCREMENT = 8;
 ALTER TABLE tuitions AUTO_INCREMENT = 5;
+
+DROP PROCEDURE IF EXISTS sp_check_login;
+DROP PROCEDURE IF EXISTS sp_get_all_users;
+DROP PROCEDURE IF EXISTS sp_search_users;
+DROP PROCEDURE IF EXISTS sp_add_user;
+DROP PROCEDURE IF EXISTS sp_delete_user;
+DROP PROCEDURE IF EXISTS sp_update_user_role;
+DROP PROCEDURE IF EXISTS sp_get_all_faculties;
+DROP PROCEDURE IF EXISTS sp_get_faculty_by_id;
+DROP PROCEDURE IF EXISTS sp_get_all_majors;
+DROP PROCEDURE IF EXISTS sp_get_major_by_id;
+DROP PROCEDURE IF EXISTS sp_get_all_sessions;
+DROP PROCEDURE IF EXISTS sp_get_session_by_id;
+DROP PROCEDURE IF EXISTS sp_get_all_textbooks;
+DROP PROCEDURE IF EXISTS sp_get_textbook_by_id;
+DROP PROCEDURE IF EXISTS sp_get_all_teachers;
+DROP PROCEDURE IF EXISTS sp_get_teacher_by_id;
+DROP PROCEDURE IF EXISTS sp_search_teachers;
+DROP PROCEDURE IF EXISTS sp_select_students_base;
+DROP PROCEDURE IF EXISTS sp_get_all_students;
+DROP PROCEDURE IF EXISTS sp_get_student_by_id;
+DROP PROCEDURE IF EXISTS sp_get_student_by_mssv;
+DROP PROCEDURE IF EXISTS sp_get_students_by_class;
+DROP PROCEDURE IF EXISTS sp_search_students;
+DROP PROCEDURE IF EXISTS sp_add_student;
+DROP PROCEDURE IF EXISTS sp_update_student;
+DROP PROCEDURE IF EXISTS sp_soft_delete_student;
+DROP PROCEDURE IF EXISTS sp_get_all_subjects;
+DROP PROCEDURE IF EXISTS sp_get_subject_by_id;
+DROP PROCEDURE IF EXISTS sp_search_subjects;
+DROP PROCEDURE IF EXISTS sp_create_subject;
+DROP PROCEDURE IF EXISTS sp_update_subject;
+DROP PROCEDURE IF EXISTS sp_delete_subject;
+DROP PROCEDURE IF EXISTS sp_get_textbooks_by_subject;
+DROP PROCEDURE IF EXISTS sp_delete_subject_textbooks;
+DROP PROCEDURE IF EXISTS sp_add_subject_textbook;
+DROP PROCEDURE IF EXISTS sp_get_all_class_sections;
+DROP PROCEDURE IF EXISTS sp_get_class_section_by_id;
+DROP PROCEDURE IF EXISTS sp_search_class_sections;
+DROP PROCEDURE IF EXISTS sp_get_class_sections_by_teacher;
+DROP PROCEDURE IF EXISTS sp_get_class_sections_by_student;
+DROP PROCEDURE IF EXISTS sp_get_active_sessions_by_teacher;
+DROP PROCEDURE IF EXISTS sp_create_class_section;
+DROP PROCEDURE IF EXISTS sp_update_class_section;
+DROP PROCEDURE IF EXISTS sp_cancel_class_section;
+DROP PROCEDURE IF EXISTS sp_get_sessions_by_class_section;
+DROP PROCEDURE IF EXISTS sp_delete_class_section_sessions;
+DROP PROCEDURE IF EXISTS sp_add_class_section_session;
+DROP PROCEDURE IF EXISTS sp_get_student_enrollments;
+DROP PROCEDURE IF EXISTS sp_enroll_student;
+DROP PROCEDURE IF EXISTS sp_cancel_enrollment;
+DROP PROCEDURE IF EXISTS sp_get_grade_by_student_and_class;
+DROP PROCEDURE IF EXISTS sp_get_grades_by_student;
+DROP PROCEDURE IF EXISTS sp_get_grades_by_class;
+DROP PROCEDURE IF EXISTS sp_select_grades_base;
+DROP PROCEDURE IF EXISTS sp_update_grade;
+DROP PROCEDURE IF EXISTS sp_add_grade;
+DROP PROCEDURE IF EXISTS sp_ensure_grade_for_student_class;
+DROP PROCEDURE IF EXISTS sp_get_all_tuitions;
+DROP PROCEDURE IF EXISTS sp_get_tuitions_by_student;
+DROP PROCEDURE IF EXISTS sp_update_tuition;
+DROP PROCEDURE IF EXISTS sp_apply_tuition_discount;
+DROP PROCEDURE IF EXISTS sp_pay_tuition;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_check_login(IN p_username VARCHAR(100), IN p_password VARCHAR(255))
+BEGIN
+    SELECT id, username, password, name, role, status FROM users
+    WHERE username = p_username AND password = p_password AND status = 'active';
+END$$
+
+CREATE PROCEDURE sp_get_all_users()
+BEGIN
+    SELECT id, username, password, name, role, status FROM users ORDER BY id;
+END$$
+
+CREATE PROCEDURE sp_search_users(IN p_keyword VARCHAR(255))
+BEGIN
+    SELECT id, username, password, name, role, status FROM users
+    WHERE LOWER(name) LIKE CONCAT('%', p_keyword, '%')
+       OR LOWER(username) LIKE CONCAT('%', p_keyword, '%')
+       OR CAST(id AS CHAR) LIKE CONCAT('%', p_keyword, '%')
+    ORDER BY id;
+END$$
+
+CREATE PROCEDURE sp_add_user(
+    IN p_username VARCHAR(100),
+    IN p_password VARCHAR(255),
+    IN p_name VARCHAR(255),
+    IN p_role VARCHAR(20),
+    IN p_status VARCHAR(50),
+    OUT p_id INT
+)
+BEGIN
+    INSERT INTO users(username, password, name, role, status)
+    VALUES (p_username, p_password, p_name, p_role, p_status);
+    SET p_id = LAST_INSERT_ID();
+END$$
+
+CREATE PROCEDURE sp_delete_user(IN p_id INT)
+BEGIN
+    DELETE FROM users WHERE id = p_id;
+END$$
+
+CREATE PROCEDURE sp_update_user_role(IN p_id INT, IN p_role VARCHAR(20))
+BEGIN
+    UPDATE users SET role = p_role WHERE id = p_id;
+END$$
+
+CREATE PROCEDURE sp_get_all_faculties()
+BEGIN
+    SELECT id, code, name, head FROM faculties ORDER BY id;
+END$$
+
+CREATE PROCEDURE sp_get_faculty_by_id(IN p_id INT)
+BEGIN
+    SELECT id, code, name, head FROM faculties WHERE id = p_id;
+END$$
+
+CREATE PROCEDURE sp_get_all_majors()
+BEGIN
+    SELECT m.id, m.code, m.name, f.id faculty_id, f.code faculty_code, f.name faculty_name, f.head
+    FROM majors m JOIN faculties f ON f.id = m.faculty_id ORDER BY m.id;
+END$$
+
+CREATE PROCEDURE sp_get_major_by_id(IN p_id INT)
+BEGIN
+    SELECT m.id, m.code, m.name, f.id faculty_id, f.code faculty_code, f.name faculty_name, f.head
+    FROM majors m JOIN faculties f ON f.id = m.faculty_id WHERE m.id = p_id;
+END$$
+
+CREATE PROCEDURE sp_get_all_sessions()
+BEGIN
+    SELECT id, day_of_week, start_period, end_period, room FROM sessions ORDER BY id;
+END$$
+
+CREATE PROCEDURE sp_get_session_by_id(IN p_id INT)
+BEGIN
+    SELECT id, day_of_week, start_period, end_period, room FROM sessions WHERE id = p_id;
+END$$
+
+CREATE PROCEDURE sp_get_all_textbooks()
+BEGIN
+    SELECT id, name, author, publish_year FROM textbooks ORDER BY id;
+END$$
+
+CREATE PROCEDURE sp_get_textbook_by_id(IN p_id INT)
+BEGIN
+    SELECT id, name, author, publish_year FROM textbooks WHERE id = p_id;
+END$$
+
+CREATE PROCEDURE sp_get_all_teachers()
+BEGIN
+    SELECT u.id, u.username, u.password, u.name, u.status, t.email, t.phone,
+           f.id faculty_id, f.code faculty_code, f.name faculty_name, f.head
+    FROM teachers t JOIN users u ON u.id = t.user_id
+    JOIN faculties f ON f.id = t.faculty_id
+    ORDER BY u.id;
+END$$
+
+CREATE PROCEDURE sp_get_teacher_by_id(IN p_id INT)
+BEGIN
+    SELECT u.id, u.username, u.password, u.name, u.status, t.email, t.phone,
+           f.id faculty_id, f.code faculty_code, f.name faculty_name, f.head
+    FROM teachers t JOIN users u ON u.id = t.user_id
+    JOIN faculties f ON f.id = t.faculty_id
+    WHERE u.id = p_id;
+END$$
+
+CREATE PROCEDURE sp_search_teachers(IN p_keyword VARCHAR(255))
+BEGIN
+    SELECT u.id, u.username, u.password, u.name, u.status, t.email, t.phone,
+           f.id faculty_id, f.code faculty_code, f.name faculty_name, f.head
+    FROM teachers t JOIN users u ON u.id = t.user_id
+    JOIN faculties f ON f.id = t.faculty_id
+    WHERE LOWER(u.name) LIKE CONCAT('%', p_keyword, '%')
+    ORDER BY u.id;
+END$$
+
+CREATE PROCEDURE sp_select_students_base()
+BEGIN
+    SELECT u.id, u.username, u.password, u.name, u.status, st.mssv, st.dob, st.gender, st.address, st.email, st.phone,
+           st.cohort, st.admin_class, st.student_status,
+           f.id faculty_id, f.code faculty_code, f.name faculty_name, f.head,
+           m.id major_id, m.code major_code, m.name major_name
+    FROM students st JOIN users u ON u.id = st.user_id
+    JOIN faculties f ON f.id = st.faculty_id
+    JOIN majors m ON m.id = st.major_id
+    ORDER BY u.id;
+END$$
+
+CREATE PROCEDURE sp_get_all_students()
+BEGIN
+    CALL sp_select_students_base();
+END$$
+
+CREATE PROCEDURE sp_get_student_by_id(IN p_id INT)
+BEGIN
+    SELECT u.id, u.username, u.password, u.name, u.status, st.mssv, st.dob, st.gender, st.address, st.email, st.phone,
+           st.cohort, st.admin_class, st.student_status,
+           f.id faculty_id, f.code faculty_code, f.name faculty_name, f.head,
+           m.id major_id, m.code major_code, m.name major_name
+    FROM students st JOIN users u ON u.id = st.user_id
+    JOIN faculties f ON f.id = st.faculty_id
+    JOIN majors m ON m.id = st.major_id
+    WHERE u.id = p_id;
+END$$
+
+CREATE PROCEDURE sp_get_student_by_mssv(IN p_mssv VARCHAR(50))
+BEGIN
+    SELECT u.id, u.username, u.password, u.name, u.status, st.mssv, st.dob, st.gender, st.address, st.email, st.phone,
+           st.cohort, st.admin_class, st.student_status,
+           f.id faculty_id, f.code faculty_code, f.name faculty_name, f.head,
+           m.id major_id, m.code major_code, m.name major_name
+    FROM students st JOIN users u ON u.id = st.user_id
+    JOIN faculties f ON f.id = st.faculty_id
+    JOIN majors m ON m.id = st.major_id
+    WHERE st.mssv = p_mssv;
+END$$
+
+CREATE PROCEDURE sp_get_students_by_class(IN p_class_section_id INT)
+BEGIN
+    SELECT u.id, u.username, u.password, u.name, u.status, st.mssv, st.dob, st.gender, st.address, st.email, st.phone,
+           st.cohort, st.admin_class, st.student_status,
+           f.id faculty_id, f.code faculty_code, f.name faculty_name, f.head,
+           m.id major_id, m.code major_code, m.name major_name
+    FROM students st JOIN users u ON u.id = st.user_id
+    JOIN faculties f ON f.id = st.faculty_id
+    JOIN majors m ON m.id = st.major_id
+    JOIN student_enrollments se ON se.student_id = st.user_id
+    WHERE se.class_section_id = p_class_section_id
+    ORDER BY u.id;
+END$$
+
+CREATE PROCEDURE sp_search_students(IN p_keyword VARCHAR(255))
+BEGIN
+    SELECT u.id, u.username, u.password, u.name, u.status, st.mssv, st.dob, st.gender, st.address, st.email, st.phone,
+           st.cohort, st.admin_class, st.student_status,
+           f.id faculty_id, f.code faculty_code, f.name faculty_name, f.head,
+           m.id major_id, m.code major_code, m.name major_name
+    FROM students st JOIN users u ON u.id = st.user_id
+    JOIN faculties f ON f.id = st.faculty_id
+    JOIN majors m ON m.id = st.major_id
+    WHERE LOWER(u.name) LIKE CONCAT('%', p_keyword, '%')
+       OR LOWER(st.mssv) LIKE CONCAT('%', p_keyword, '%')
+    ORDER BY u.id;
+END$$
+
+CREATE PROCEDURE sp_add_student(
+    IN p_username VARCHAR(100), IN p_password VARCHAR(255), IN p_name VARCHAR(255), IN p_status VARCHAR(50),
+    IN p_dob VARCHAR(20), IN p_gender VARCHAR(20), IN p_address VARCHAR(255), IN p_email VARCHAR(255), IN p_phone VARCHAR(50),
+    IN p_faculty_id INT, IN p_major_id INT, IN p_cohort VARCHAR(20), IN p_admin_class VARCHAR(100), IN p_student_status VARCHAR(50),
+    OUT p_user_id INT, OUT p_mssv VARCHAR(50)
+)
+BEGIN
+    INSERT INTO users(username, password, name, role, status)
+    VALUES (p_username, p_password, p_name, 'STUDENT', p_status);
+    SET p_user_id = LAST_INSERT_ID();
+    SELECT CONCAT('B', COALESCE(MAX(CASE WHEN mssv REGEXP '^B[0-9]+$' THEN CAST(SUBSTRING(mssv, 2) AS UNSIGNED) END), 24000) + 1)
+    INTO p_mssv FROM students;
+    INSERT INTO students(user_id, mssv, dob, gender, address, email, phone, faculty_id, major_id, cohort, admin_class, student_status)
+    VALUES (p_user_id, p_mssv, p_dob, p_gender, p_address, p_email, p_phone, p_faculty_id, p_major_id, p_cohort, p_admin_class, p_student_status);
+END$$
+
+CREATE PROCEDURE sp_update_student(
+    IN p_id INT, IN p_username VARCHAR(100), IN p_password VARCHAR(255), IN p_name VARCHAR(255), IN p_status VARCHAR(50),
+    IN p_mssv VARCHAR(50), IN p_dob VARCHAR(20), IN p_gender VARCHAR(20), IN p_address VARCHAR(255), IN p_email VARCHAR(255),
+    IN p_phone VARCHAR(50), IN p_faculty_id INT, IN p_major_id INT, IN p_cohort VARCHAR(20),
+    IN p_admin_class VARCHAR(100), IN p_student_status VARCHAR(50)
+)
+BEGIN
+    UPDATE users SET username = p_username, password = p_password, name = p_name, status = p_status WHERE id = p_id;
+    UPDATE students
+    SET mssv = p_mssv, dob = p_dob, gender = p_gender, address = p_address, email = p_email, phone = p_phone,
+        faculty_id = p_faculty_id, major_id = p_major_id, cohort = p_cohort, admin_class = p_admin_class, student_status = p_student_status
+    WHERE user_id = p_id;
+END$$
+
+CREATE PROCEDURE sp_soft_delete_student(IN p_id INT)
+BEGIN
+    UPDATE students SET student_status = 'nghỉ học' WHERE user_id = p_id;
+END$$
+
+CREATE PROCEDURE sp_get_all_subjects()
+BEGIN
+    SELECT s.id, s.code, s.name, s.credits, s.content, s.status,
+           f.id faculty_id, f.code faculty_code, f.name faculty_name, f.head
+    FROM subjects s JOIN faculties f ON f.id = s.faculty_id
+    ORDER BY s.id;
+END$$
+
+CREATE PROCEDURE sp_get_subject_by_id(IN p_id INT)
+BEGIN
+    SELECT s.id, s.code, s.name, s.credits, s.content, s.status,
+           f.id faculty_id, f.code faculty_code, f.name faculty_name, f.head
+    FROM subjects s JOIN faculties f ON f.id = s.faculty_id
+    WHERE s.id = p_id;
+END$$
+
+CREATE PROCEDURE sp_search_subjects(IN p_keyword VARCHAR(255))
+BEGIN
+    SELECT s.id, s.code, s.name, s.credits, s.content, s.status,
+           f.id faculty_id, f.code faculty_code, f.name faculty_name, f.head
+    FROM subjects s JOIN faculties f ON f.id = s.faculty_id
+    WHERE LOWER(s.name) LIKE CONCAT('%', p_keyword, '%')
+       OR LOWER(s.code) LIKE CONCAT('%', p_keyword, '%')
+    ORDER BY s.id;
+END$$
+
+CREATE PROCEDURE sp_create_subject(
+    IN p_code VARCHAR(50), IN p_name VARCHAR(255), IN p_credits INT, IN p_content TEXT,
+    IN p_faculty_id INT, IN p_status VARCHAR(50), OUT p_id INT
+)
+BEGIN
+    INSERT INTO subjects(code, name, credits, content, faculty_id, status)
+    VALUES (p_code, p_name, p_credits, p_content, p_faculty_id, p_status);
+    SET p_id = LAST_INSERT_ID();
+END$$
+
+CREATE PROCEDURE sp_update_subject(
+    IN p_id INT, IN p_name VARCHAR(255), IN p_credits INT, IN p_content TEXT, IN p_faculty_id INT, IN p_status VARCHAR(50)
+)
+BEGIN
+    UPDATE subjects SET name = p_name, credits = p_credits, content = p_content, faculty_id = p_faculty_id, status = p_status WHERE id = p_id;
+END$$
+
+CREATE PROCEDURE sp_delete_subject(IN p_id INT)
+BEGIN
+    DELETE FROM subjects WHERE id = p_id;
+END$$
+
+CREATE PROCEDURE sp_get_textbooks_by_subject(IN p_subject_id INT)
+BEGIN
+    SELECT t.id, t.name, t.author, t.publish_year FROM textbooks t
+    JOIN subject_textbooks st ON st.textbook_id = t.id
+    WHERE st.subject_id = p_subject_id
+    ORDER BY t.id;
+END$$
+
+CREATE PROCEDURE sp_delete_subject_textbooks(IN p_subject_id INT)
+BEGIN
+    DELETE FROM subject_textbooks WHERE subject_id = p_subject_id;
+END$$
+
+CREATE PROCEDURE sp_add_subject_textbook(IN p_subject_id INT, IN p_textbook_id INT)
+BEGIN
+    INSERT IGNORE INTO subject_textbooks(subject_id, textbook_id) VALUES (p_subject_id, p_textbook_id);
+END$$
+
+CREATE PROCEDURE sp_get_all_class_sections()
+BEGIN
+    SELECT c.id, c.code, c.capacity, c.enrolled_count, c.status,
+           s.id subject_id, s.code subject_code, s.name subject_name, s.credits, s.content, s.status subject_status,
+           sf.id subject_faculty_id, sf.code subject_faculty_code, sf.name subject_faculty_name, sf.head subject_faculty_head,
+           u.id teacher_id, u.username, u.password, u.name teacher_name, u.status teacher_status, t.email teacher_email, t.phone teacher_phone,
+           tf.id teacher_faculty_id, tf.code teacher_faculty_code, tf.name teacher_faculty_name, tf.head teacher_faculty_head
+    FROM class_sections c
+    JOIN subjects s ON s.id = c.subject_id JOIN faculties sf ON sf.id = s.faculty_id
+    JOIN teachers t ON t.user_id = c.teacher_id JOIN users u ON u.id = t.user_id
+    JOIN faculties tf ON tf.id = t.faculty_id
+    ORDER BY c.id;
+END$$
+
+CREATE PROCEDURE sp_get_class_section_by_id(IN p_id INT)
+BEGIN
+    SELECT c.id, c.code, c.capacity, c.enrolled_count, c.status,
+           s.id subject_id, s.code subject_code, s.name subject_name, s.credits, s.content, s.status subject_status,
+           sf.id subject_faculty_id, sf.code subject_faculty_code, sf.name subject_faculty_name, sf.head subject_faculty_head,
+           u.id teacher_id, u.username, u.password, u.name teacher_name, u.status teacher_status, t.email teacher_email, t.phone teacher_phone,
+           tf.id teacher_faculty_id, tf.code teacher_faculty_code, tf.name teacher_faculty_name, tf.head teacher_faculty_head
+    FROM class_sections c
+    JOIN subjects s ON s.id = c.subject_id JOIN faculties sf ON sf.id = s.faculty_id
+    JOIN teachers t ON t.user_id = c.teacher_id JOIN users u ON u.id = t.user_id
+    JOIN faculties tf ON tf.id = t.faculty_id
+    WHERE c.id = p_id;
+END$$
+
+CREATE PROCEDURE sp_search_class_sections(IN p_keyword VARCHAR(255))
+BEGIN
+    SELECT c.id, c.code, c.capacity, c.enrolled_count, c.status,
+           s.id subject_id, s.code subject_code, s.name subject_name, s.credits, s.content, s.status subject_status,
+           sf.id subject_faculty_id, sf.code subject_faculty_code, sf.name subject_faculty_name, sf.head subject_faculty_head,
+           u.id teacher_id, u.username, u.password, u.name teacher_name, u.status teacher_status, t.email teacher_email, t.phone teacher_phone,
+           tf.id teacher_faculty_id, tf.code teacher_faculty_code, tf.name teacher_faculty_name, tf.head teacher_faculty_head
+    FROM class_sections c
+    JOIN subjects s ON s.id = c.subject_id JOIN faculties sf ON sf.id = s.faculty_id
+    JOIN teachers t ON t.user_id = c.teacher_id JOIN users u ON u.id = t.user_id
+    JOIN faculties tf ON tf.id = t.faculty_id
+    WHERE LOWER(c.code) LIKE CONCAT('%', p_keyword, '%')
+       OR LOWER(s.name) LIKE CONCAT('%', p_keyword, '%')
+    ORDER BY c.id;
+END$$
+
+CREATE PROCEDURE sp_get_class_sections_by_teacher(IN p_teacher_id INT)
+BEGIN
+    SELECT c.id, c.code, c.capacity, c.enrolled_count, c.status,
+           s.id subject_id, s.code subject_code, s.name subject_name, s.credits, s.content, s.status subject_status,
+           sf.id subject_faculty_id, sf.code subject_faculty_code, sf.name subject_faculty_name, sf.head subject_faculty_head,
+           u.id teacher_id, u.username, u.password, u.name teacher_name, u.status teacher_status, t.email teacher_email, t.phone teacher_phone,
+           tf.id teacher_faculty_id, tf.code teacher_faculty_code, tf.name teacher_faculty_name, tf.head teacher_faculty_head
+    FROM class_sections c
+    JOIN subjects s ON s.id = c.subject_id JOIN faculties sf ON sf.id = s.faculty_id
+    JOIN teachers t ON t.user_id = c.teacher_id JOIN users u ON u.id = t.user_id
+    JOIN faculties tf ON tf.id = t.faculty_id
+    WHERE c.teacher_id = p_teacher_id
+    ORDER BY c.id;
+END$$
+
+CREATE PROCEDURE sp_get_class_sections_by_student(IN p_student_id INT)
+BEGIN
+    SELECT c.id, c.code, c.capacity, c.enrolled_count, c.status,
+           s.id subject_id, s.code subject_code, s.name subject_name, s.credits, s.content, s.status subject_status,
+           sf.id subject_faculty_id, sf.code subject_faculty_code, sf.name subject_faculty_name, sf.head subject_faculty_head,
+           u.id teacher_id, u.username, u.password, u.name teacher_name, u.status teacher_status, t.email teacher_email, t.phone teacher_phone,
+           tf.id teacher_faculty_id, tf.code teacher_faculty_code, tf.name teacher_faculty_name, tf.head teacher_faculty_head
+    FROM class_sections c
+    JOIN subjects s ON s.id = c.subject_id JOIN faculties sf ON sf.id = s.faculty_id
+    JOIN teachers t ON t.user_id = c.teacher_id JOIN users u ON u.id = t.user_id
+    JOIN faculties tf ON tf.id = t.faculty_id
+    JOIN student_enrollments se ON se.class_section_id = c.id
+    WHERE se.student_id = p_student_id
+    ORDER BY c.id;
+END$$
+
+CREATE PROCEDURE sp_get_active_sessions_by_teacher(IN p_teacher_id INT)
+BEGIN
+    SELECT se.day_of_week, se.start_period, se.end_period FROM class_sections c
+    JOIN class_section_sessions css ON css.class_section_id = c.id
+    JOIN sessions se ON se.id = css.session_id
+    WHERE c.teacher_id = p_teacher_id AND c.status = 'active';
+END$$
+
+CREATE PROCEDURE sp_create_class_section(
+    IN p_code VARCHAR(100), IN p_subject_id INT, IN p_teacher_id INT, IN p_capacity INT,
+    IN p_enrolled_count INT, IN p_status VARCHAR(50), OUT p_id INT
+)
+BEGIN
+    INSERT INTO class_sections(code, subject_id, teacher_id, capacity, enrolled_count, status)
+    VALUES (p_code, p_subject_id, p_teacher_id, p_capacity, p_enrolled_count, p_status);
+    SET p_id = LAST_INSERT_ID();
+END$$
+
+CREATE PROCEDURE sp_update_class_section(
+    IN p_id INT, IN p_code VARCHAR(100), IN p_subject_id INT, IN p_teacher_id INT,
+    IN p_capacity INT, IN p_enrolled_count INT, IN p_status VARCHAR(50)
+)
+BEGIN
+    UPDATE class_sections
+    SET code = p_code, subject_id = p_subject_id, teacher_id = p_teacher_id,
+        capacity = p_capacity, enrolled_count = p_enrolled_count, status = p_status
+    WHERE id = p_id;
+END$$
+
+CREATE PROCEDURE sp_cancel_class_section(IN p_id INT)
+BEGIN
+    UPDATE class_sections SET status = 'cancelled' WHERE id = p_id;
+END$$
+
+CREATE PROCEDURE sp_get_sessions_by_class_section(IN p_class_section_id INT)
+BEGIN
+    SELECT se.id, se.day_of_week, se.start_period, se.end_period, se.room FROM sessions se
+    JOIN class_section_sessions css ON css.session_id = se.id
+    WHERE css.class_section_id = p_class_section_id
+    ORDER BY se.id;
+END$$
+
+CREATE PROCEDURE sp_delete_class_section_sessions(IN p_class_section_id INT)
+BEGIN
+    DELETE FROM class_section_sessions WHERE class_section_id = p_class_section_id;
+END$$
+
+CREATE PROCEDURE sp_add_class_section_session(IN p_class_section_id INT, IN p_session_id INT)
+BEGIN
+    INSERT INTO class_section_sessions(class_section_id, session_id) VALUES (p_class_section_id, p_session_id);
+END$$
+
+CREATE PROCEDURE sp_get_student_enrollments()
+BEGIN
+    SELECT student_id, class_section_id FROM student_enrollments;
+END$$
+
+CREATE PROCEDURE sp_enroll_student(IN p_student_id INT, IN p_class_section_id INT)
+BEGIN
+    INSERT INTO student_enrollments(student_id, class_section_id)
+    SELECT p_student_id, p_class_section_id
+    FROM class_sections
+    WHERE id = p_class_section_id AND enrolled_count < capacity;
+    UPDATE class_sections
+    SET enrolled_count = enrolled_count + 1
+    WHERE id = p_class_section_id AND ROW_COUNT() > 0;
+END$$
+
+CREATE PROCEDURE sp_cancel_enrollment(IN p_student_id INT, IN p_class_section_id INT)
+BEGIN
+    DELETE FROM student_enrollments WHERE student_id = p_student_id AND class_section_id = p_class_section_id;
+    UPDATE class_sections
+    SET enrolled_count = GREATEST(enrolled_count - 1, 0)
+    WHERE id = p_class_section_id AND ROW_COUNT() > 0;
+END$$
+
+CREATE PROCEDURE sp_select_grades_base(IN p_student_id INT, IN p_class_section_id INT, IN p_grade_id INT)
+BEGIN
+    SELECT g.id, g.attendance_score, g.midterm_score, g.final_score, g.semester,
+           su.id student_user_id, su.username student_username, su.password student_password, su.name student_name, su.status student_status_user,
+           st.mssv, st.dob, st.gender, st.address, st.email student_email, st.phone student_phone, st.cohort, st.admin_class, st.student_status,
+           sf.id student_faculty_id, sf.code student_faculty_code, sf.name student_faculty_name, sf.head student_faculty_head,
+           m.id major_id, m.code major_code, m.name major_name,
+           c.id class_id, c.code class_code, c.capacity, c.enrolled_count, c.status class_status,
+           sub.id subject_id, sub.code subject_code, sub.name subject_name, sub.credits, sub.content, sub.status subject_status,
+           subf.id subject_faculty_id, subf.code subject_faculty_code, subf.name subject_faculty_name, subf.head subject_faculty_head,
+           tu.id teacher_id, tu.username teacher_username, tu.password teacher_password, tu.name teacher_name, tu.status teacher_status,
+           t.email teacher_email, t.phone teacher_phone, tf.id teacher_faculty_id, tf.code teacher_faculty_code, tf.name teacher_faculty_name, tf.head teacher_faculty_head
+    FROM grades g
+    JOIN students st ON st.user_id = g.student_id JOIN users su ON su.id = st.user_id
+    JOIN faculties sf ON sf.id = st.faculty_id JOIN majors m ON m.id = st.major_id
+    JOIN class_sections c ON c.id = g.class_section_id
+    JOIN subjects sub ON sub.id = c.subject_id JOIN faculties subf ON subf.id = sub.faculty_id
+    JOIN teachers t ON t.user_id = c.teacher_id JOIN users tu ON tu.id = t.user_id JOIN faculties tf ON tf.id = t.faculty_id
+    WHERE (p_student_id IS NULL OR g.student_id = p_student_id)
+      AND (p_class_section_id IS NULL OR g.class_section_id = p_class_section_id)
+      AND (p_grade_id IS NULL OR g.id = p_grade_id)
+    ORDER BY g.id;
+END$$
+
+CREATE PROCEDURE sp_get_grade_by_student_and_class(IN p_student_id INT, IN p_class_section_id INT)
+BEGIN
+    CALL sp_select_grades_base(p_student_id, p_class_section_id, NULL);
+END$$
+
+CREATE PROCEDURE sp_get_grades_by_student(IN p_student_id INT)
+BEGIN
+    CALL sp_select_grades_base(p_student_id, NULL, NULL);
+END$$
+
+CREATE PROCEDURE sp_get_grades_by_class(IN p_class_section_id INT)
+BEGIN
+    CALL sp_select_grades_base(NULL, p_class_section_id, NULL);
+END$$
+
+CREATE PROCEDURE sp_update_grade(
+    IN p_id INT, IN p_attendance_score DOUBLE, IN p_midterm_score DOUBLE, IN p_final_score DOUBLE, IN p_semester VARCHAR(20)
+)
+BEGIN
+    UPDATE grades SET attendance_score = p_attendance_score, midterm_score = p_midterm_score, final_score = p_final_score, semester = p_semester WHERE id = p_id;
+END$$
+
+CREATE PROCEDURE sp_add_grade(
+    IN p_student_id INT, IN p_class_section_id INT, IN p_attendance_score DOUBLE, IN p_midterm_score DOUBLE,
+    IN p_final_score DOUBLE, IN p_semester VARCHAR(20), OUT p_id INT
+)
+BEGIN
+    INSERT INTO grades(student_id, class_section_id, attendance_score, midterm_score, final_score, semester)
+    VALUES (p_student_id, p_class_section_id, p_attendance_score, p_midterm_score, p_final_score, p_semester);
+    SET p_id = LAST_INSERT_ID();
+END$$
+
+CREATE PROCEDURE sp_ensure_grade_for_student_class(IN p_student_id INT, IN p_class_section_id INT)
+BEGIN
+    INSERT IGNORE INTO grades(student_id, class_section_id, attendance_score, midterm_score, final_score, semester)
+    VALUES (p_student_id, p_class_section_id, 0, 0, 0, '2024-2');
+END$$
+
+CREATE PROCEDURE sp_get_all_tuitions()
+BEGIN
+    SELECT tu.id tuition_id, tu.semester, tu.registered_credits, tu.price_per_credit, tu.paid, tu.status tuition_status,
+           u.id, u.username, u.password, u.name, u.status, st.mssv, st.dob, st.gender, st.address, st.email, st.phone,
+           st.cohort, st.admin_class, st.student_status,
+           f.id faculty_id, f.code faculty_code, f.name faculty_name, f.head,
+           m.id major_id, m.code major_code, m.name major_name
+    FROM tuitions tu JOIN students st ON st.user_id = tu.student_id JOIN users u ON u.id = st.user_id
+    JOIN faculties f ON f.id = st.faculty_id JOIN majors m ON m.id = st.major_id
+    ORDER BY tu.id;
+END$$
+
+CREATE PROCEDURE sp_get_tuitions_by_student(IN p_student_id INT)
+BEGIN
+    SELECT tu.id tuition_id, tu.semester, tu.registered_credits, tu.price_per_credit, tu.paid, tu.status tuition_status,
+           u.id, u.username, u.password, u.name, u.status, st.mssv, st.dob, st.gender, st.address, st.email, st.phone,
+           st.cohort, st.admin_class, st.student_status,
+           f.id faculty_id, f.code faculty_code, f.name faculty_name, f.head,
+           m.id major_id, m.code major_code, m.name major_name
+    FROM tuitions tu JOIN students st ON st.user_id = tu.student_id JOIN users u ON u.id = st.user_id
+    JOIN faculties f ON f.id = st.faculty_id JOIN majors m ON m.id = st.major_id
+    WHERE tu.student_id = p_student_id
+    ORDER BY tu.id;
+END$$
+
+CREATE PROCEDURE sp_update_tuition(
+    IN p_id INT, IN p_semester VARCHAR(20), IN p_registered_credits INT, IN p_price_per_credit DOUBLE, IN p_paid DOUBLE, IN p_status VARCHAR(50)
+)
+BEGIN
+    UPDATE tuitions SET semester = p_semester, registered_credits = p_registered_credits, price_per_credit = p_price_per_credit, paid = p_paid, status = p_status WHERE id = p_id;
+END$$
+
+CREATE PROCEDURE sp_apply_tuition_discount(IN p_id INT)
+BEGIN
+    UPDATE tuitions SET status = 'miễn giảm', paid = 0 WHERE id = p_id;
+END$$
+
+CREATE PROCEDURE sp_pay_tuition(IN p_id INT)
+BEGIN
+    UPDATE tuitions SET paid = registered_credits * price_per_credit, status = 'đã đóng' WHERE id = p_id;
+END$$
+
+DELIMITER ;
+
+select * from subjects;

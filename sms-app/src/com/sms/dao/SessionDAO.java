@@ -8,9 +8,8 @@ import java.util.List;
 public class SessionDAO extends DAO {
     public List<Session> getAllSession() {
         List<Session> sessions = new ArrayList<>();
-        String sql = "SELECT id, day_of_week, start_period, end_period, room FROM sessions ORDER BY id";
         try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
+             CallableStatement ps = conn.prepareCall(call("sp_get_all_sessions", 0));
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) sessions.add(mapSession(rs));
             return sessions;
@@ -20,9 +19,8 @@ public class SessionDAO extends DAO {
     }
 
     public Session getById(int id) {
-        String sql = "SELECT id, day_of_week, start_period, end_period, room FROM sessions WHERE id = ?";
         try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+             CallableStatement ps = conn.prepareCall(call("sp_get_session_by_id", 1))) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? mapSession(rs) : null;

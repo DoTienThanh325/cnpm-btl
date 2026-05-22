@@ -8,10 +8,8 @@ import java.util.List;
 public class MajorDAO extends DAO {
     public List<Major> getAllMajors() {
         List<Major> majors = new ArrayList<>();
-        String sql = "SELECT m.id, m.code, m.name, f.id faculty_id, f.code faculty_code, f.name faculty_name, f.head "
-                + "FROM majors m JOIN faculties f ON f.id = m.faculty_id ORDER BY m.id";
         try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
+             CallableStatement ps = conn.prepareCall(call("sp_get_all_majors", 0));
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) majors.add(mapMajor(rs));
             return majors;
@@ -21,10 +19,8 @@ public class MajorDAO extends DAO {
     }
 
     public Major getById(int id) {
-        String sql = "SELECT m.id, m.code, m.name, f.id faculty_id, f.code faculty_code, f.name faculty_name, f.head "
-                + "FROM majors m JOIN faculties f ON f.id = m.faculty_id WHERE m.id = ?";
         try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+             CallableStatement ps = conn.prepareCall(call("sp_get_major_by_id", 1))) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? mapMajor(rs) : null;
