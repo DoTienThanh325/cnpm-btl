@@ -1,7 +1,6 @@
 package com.sms.view;
 
 import com.sms.dao.FacultyDAO;
-import com.sms.dao.MajorDAO;
 import com.sms.dao.SubjectDAO;
 import com.sms.dao.TextbookDAO;
 import com.sms.entity.*;
