@@ -7,8 +7,10 @@ import java.util.List;
 
 public class UserDAO extends DAO {
     public User checkLogin(String username, String password) {
+        String sql = "SELECT id, username, password, name, role, status FROM users "
+                + "WHERE username = ? AND password = ? AND status = 'active'";
         try (Connection conn = getConnection();
-             CallableStatement ps = conn.prepareCall(call("sp_check_login", 2))) {
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, username);
             ps.setString(2, password);
             try (ResultSet rs = ps.executeQuery()) {
@@ -21,8 +23,9 @@ public class UserDAO extends DAO {
 
     public List<User> getAllUsers() {
         List<User> users = new ArrayList<>();
+        String sql = "SELECT id, username, password, name, role, status FROM users ORDER BY id";
         try (Connection conn = getConnection();
-             CallableStatement ps = conn.prepareCall(call("sp_get_all_users", 0));
+             PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) users.add(mapUser(rs));
             return users;
@@ -33,10 +36,14 @@ public class UserDAO extends DAO {
 
     public List<User> searchUsers(String keyword) {
         List<User> users = new ArrayList<>();
-        String kw = keyword.toLowerCase().trim();
+        String sql = "SELECT id, username, password, name, role, status FROM users "
+                + "WHERE LOWER(name) LIKE ? OR LOWER(username) LIKE ? OR CAST(id AS CHAR) LIKE ? ORDER BY id";
+        String kw = "%" + keyword.toLowerCase().trim() + "%";
         try (Connection conn = getConnection();
-             CallableStatement ps = conn.prepareCall(call("sp_search_users", 1))) {
+             PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, kw);
+            ps.setString(2, kw);
+            ps.setString(3, kw);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) users.add(mapUser(rs));
             }
@@ -47,16 +54,18 @@ public class UserDAO extends DAO {
     }
 
     public boolean addUser(User user) {
+        String sql = "INSERT INTO users(username, password, name, role, status) VALUES (?, ?, ?, ?, ?)";
         try (Connection conn = getConnection();
-             CallableStatement ps = conn.prepareCall(call("sp_add_user", 6))) {
+             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, user.getUsername());
             ps.setString(2, user.getPassword());
             ps.setString(3, user.getName());
             ps.setString(4, user.getRole());
             ps.setString(5, user.getStatus());
-            ps.registerOutParameter(6, Types.INTEGER);
             ps.executeUpdate();
-            user.setId(ps.getInt(6));
+            try (ResultSet keys = ps.getGeneratedKeys()) {
+                if (keys.next()) user.setId(keys.getInt(1));
+            }
             return true;
         } catch (SQLIntegrityConstraintViolationException e) {
             return false;
@@ -67,7 +76,7 @@ public class UserDAO extends DAO {
 
     public boolean deleteUser(int id) {
         try (Connection conn = getConnection();
-             CallableStatement ps = conn.prepareCall(call("sp_delete_user", 1))) {
+             PreparedStatement ps = conn.prepareStatement("DELETE FROM users WHERE id = ?")) {
             ps.setInt(1, id);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
@@ -77,7 +86,7 @@ public class UserDAO extends DAO {
 
     public boolean updateUserRole(int id, String role) {
         try (Connection conn = getConnection();
-             CallableStatement ps = conn.prepareCall(call("sp_update_user_role", 2))) {
+             PreparedStatement ps = conn.prepareStatement("UPDATE users SET role = ? WHERE id = ?")) {
             ps.setString(1, role);
             ps.setInt(2, id);
             return ps.executeUpdate() > 0;
