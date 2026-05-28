@@ -113,20 +113,14 @@ public class LoginFrm extends JFrame {
         // per spec: redirect based on role
         this.dispose();
         switch (user.getRole()) {
-            case "ADMIN":
-                new AdminHomeFrm(user).setVisible(true);
-                break;
             case "PDT":
                 new AcademicAffairsHomeFrm(user).setVisible(true);
                 break;
-            case "TEACHER":
-                new TeacherHomeFrm(user).setVisible(true);
-                break;
-            case "STUDENT":
-                new StudentHomeFrm(user).setVisible(true);
-                break;
             default:
-                JOptionPane.showMessageDialog(this, "Vai trò không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this,
+                        "Tài khoản này không thuộc module Cập nhật Lớp học phần!",
+                        "Thông báo", JOptionPane.WARNING_MESSAGE);
+                this.setVisible(true); // show login again
         }
     }
 }

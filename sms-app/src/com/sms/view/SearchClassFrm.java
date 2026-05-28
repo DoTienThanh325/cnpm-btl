@@ -100,9 +100,9 @@ public class SearchClassFrm extends JFrame {
                         new EditClassFrm(SearchClassFrm.this, selected, classDAO).setVisible(true);
                         dispose();
                     } else {
-                        // GRADE mode → EditGradeFrm
-                        new EditGradeFrm(SearchClassFrm.this, selected).setVisible(true);
-                        dispose();
+                        JOptionPane.showMessageDialog(SearchClassFrm.this,
+                                "Chức năng này không có trong module này.",
+                                "Thông báo", JOptionPane.INFORMATION_MESSAGE);
                     }
                 }
             }

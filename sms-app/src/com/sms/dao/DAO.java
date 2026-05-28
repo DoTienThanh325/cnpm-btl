@@ -5,15 +5,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 
 public abstract class DAO {
-    static {
-        try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException("MySQL JDBC driver not found", e);
-        }
-    }
-
-    private static final String DEFAULT_URL = "jdbc:mysql://localhost:3306/sms?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Ho_Chi_Minh&useSSL=false&allowPublicKeyRetrieval=true";
+    private static final String DEFAULT_URL = "jdbc:mysql://localhost:3306/sms_db?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Ho_Chi_Minh&useSSL=false&allowPublicKeyRetrieval=true";
     private static final String DEFAULT_USER = "root";
     private static final String DEFAULT_PASSWORD = "123456";
 
@@ -27,6 +19,17 @@ public abstract class DAO {
 
     protected RuntimeException dbError(Exception e) {
         return new RuntimeException("Database error: " + e.getMessage(), e);
+    }
+
+    protected String call(String procedure, int parameterCount) {
+        StringBuilder sql = new StringBuilder("{CALL ").append(procedure).append("(");
+        for (int i = 0; i < parameterCount; i++) {
+            if (i > 0) {
+                sql.append(", ");
+            }
+            sql.append("?");
+        }
+        return sql.append(")}").toString();
     }
 
     private String firstNonBlank(String... values) {

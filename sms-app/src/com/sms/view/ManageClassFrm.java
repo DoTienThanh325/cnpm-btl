@@ -64,9 +64,8 @@ public class ManageClassFrm extends JFrame {
         mainPanel.add(sp, BorderLayout.CENTER);
         setContentPane(mainPanel);
 
-        // per spec: click Mở lớp mới → CreateClassFrm
         btnOpenNew.addActionListener(e -> {
-            new CreateClassFrm(this, classDAO).setVisible(true);
+            JOptionPane.showMessageDialog(this, "Chức năng 'Mở lớp mới' không có trong module này.", "Thông báo", JOptionPane.INFORMATION_MESSAGE);
         });
 
         // per spec: click Cập nhật lớp → SearchClassFrm
