@@ -64,25 +64,8 @@ public class AcademicAffairsHomeFrm extends JFrame {
         mainPanel.add(menuPanel, BorderLayout.CENTER);
         setContentPane(mainPanel);
 
-        // Action listeners per spec
-        btnStudents.addActionListener((ActionEvent e) -> {
-            new StudentManagementFrm(currentUser).setVisible(true);
-        });
-
-        btnSubjects.addActionListener((ActionEvent e) -> {
-            new SubjectFrm(currentUser).setVisible(true);
-        });
-
         btnClasses.addActionListener((ActionEvent e) -> {
             new ManageClassFrm(currentUser).setVisible(true);
-        });
-
-        btnGrades.addActionListener((ActionEvent e) -> {
-            new SearchClassForGradeFrm(currentUser, false).setVisible(true);
-        });
-
-        btnTuition.addActionListener((ActionEvent e) -> {
-            new TuitionManagementFrm(currentUser).setVisible(true);
         });
 
         btnLogout.addActionListener((ActionEvent e) -> {

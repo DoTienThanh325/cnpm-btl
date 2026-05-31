@@ -114,18 +114,6 @@ public class SubjectDAO extends DAO {
                 + "FROM subjects s JOIN faculties f ON f.id = s.faculty_id";
     }
 
-    private Subject loadTextbooks(Connection conn, Subject subject) throws SQLException {
-        String sql = "SELECT t.id, t.name, t.author, t.publish_year FROM textbooks t "
-                + "JOIN subject_textbooks st ON st.textbook_id = t.id WHERE st.subject_id = ? ORDER BY t.id";
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, subject.getId());
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) subject.getTextbooks().add(TextbookDAO.mapTextbook(rs));
-            }
-        }
-        return subject;
-    }
-
     private void saveTextbooks(Connection conn, Subject subject) throws SQLException {
         String sql = "INSERT IGNORE INTO subject_textbooks(subject_id, textbook_id) VALUES (?, ?)";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {

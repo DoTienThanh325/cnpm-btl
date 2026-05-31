@@ -6,9 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ClassSectionDAO extends DAO {
-    public static List<StudentEnrollment> getEnrollments() {
-        return new ClassSectionDAO().loadEnrollments();
-    }
 
     public List<ClassSection> getAllClassSections() {
         List<ClassSection> classes = new ArrayList<>();
@@ -228,18 +225,6 @@ public class ClassSectionDAO extends DAO {
                 while (rs.next()) classes.add(loadSessions(conn, mapClassSection(rs)));
             }
             return classes;
-        } catch (SQLException e) {
-            throw dbError(e);
-        }
-    }
-
-    private List<StudentEnrollment> loadEnrollments() {
-        List<StudentEnrollment> enrollments = new ArrayList<>();
-        try (Connection conn = getConnection();
-             PreparedStatement ps = conn.prepareStatement("SELECT student_id, class_section_id FROM student_enrollments");
-             ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) enrollments.add(new StudentEnrollment(rs.getInt("student_id"), rs.getInt("class_section_id")));
-            return enrollments;
         } catch (SQLException e) {
             throw dbError(e);
         }
