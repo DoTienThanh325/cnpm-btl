@@ -1,6 +1,24 @@
 {
     "java.project.referencedLibraries": [
         "lib/**/*.jar",
-        "c:\\Users\\ADMIN\\.m2\\repository\\mysql\\mysql-connector-java\\8.0.13\\mysql-connector-java-8.0.13.jar"
+        "c:\\Users\\ADMIN\\.m2\\repository\\mysql\\mysql-connector-java\\8.0.13\\mysql-connector-java-8.0.13.jar",
+        "d:\\download file\\junit-4.13.2.jar",
+        "d:\\download file\\hamcrest-core-1.3.jar"
+    ],
+    "sqltools.connections": [
+        {
+            "mysqlOptions": {
+                "authProtocol": "default",
+                "enableSsl": "Disabled"
+            },
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 3307,
+            "driver": "MariaDB",
+            "name": "MariaDB Local",
+            "username": "root",
+            "database": "test_db"
+        }
     ]
 }

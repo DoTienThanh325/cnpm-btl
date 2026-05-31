@@ -7,13 +7,18 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 
+/**
+ * AcademicAffairsHomeFrm (PDTHomeFrm) - per spec section C.3.1 and C.3.4
+ * Has buttons: Quản lý SV, Quản lý Môn học, Quản lý Lớp, Quản lý Điểm, Quản lý
+ * Học phí
+ */
 public class AcademicAffairsHomeFrm extends JFrame {
 
-    private final User currentUser;
+    private User currentUser;
 
     public AcademicAffairsHomeFrm(User user) {
         this.currentUser = user;
-        setTitle("Phong Dao Tao - " + user.getName());
+        setTitle("Phòng Đào Tạo - " + user.getName());
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(700, 500);
         setLocationRelativeTo(null);
@@ -24,24 +29,28 @@ public class AcademicAffairsHomeFrm extends JFrame {
         JPanel mainPanel = new JPanel(new BorderLayout());
         mainPanel.setBackground(new Color(236, 240, 241));
 
+        // Header
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBackground(new Color(41, 128, 185));
         headerPanel.setBorder(new EmptyBorder(15, 20, 15, 20));
-        JLabel lblTitle = new JLabel("PHONG DAO TAO - QUAN LY MON HOC");
+        JLabel lblTitle = new JLabel("PHÒNG ĐÀO TẠO - HỆ THỐNG QUẢN LÝ SINH VIÊN");
         lblTitle.setFont(new Font("Arial", Font.BOLD, 16));
         lblTitle.setForeground(Color.WHITE);
-        JLabel lblUser = new JLabel("Xin chao: " + currentUser.getName());
+        JLabel lblUser = new JLabel("Xin chào: " + currentUser.getName());
         lblUser.setFont(new Font("Arial", Font.PLAIN, 12));
         lblUser.setForeground(Color.WHITE);
         headerPanel.add(lblTitle, BorderLayout.WEST);
         headerPanel.add(lblUser, BorderLayout.EAST);
 
-        JPanel menuPanel = new JPanel(new GridLayout(1, 2, 20, 20));
+        // Center: menu buttons per spec
+        JPanel menuPanel = new JPanel(new GridLayout(3, 2, 20, 20));
         menuPanel.setBackground(new Color(236, 240, 241));
         menuPanel.setBorder(new EmptyBorder(40, 60, 40, 60));
 
-        JButton btnSubjects = createMenuButton("Quan ly Mon hoc", new Color(46, 204, 113));
-        JButton btnLogout = createMenuButton("Dang xuat", new Color(127, 140, 141));
+        JButton btnSubjects = createMenuButton("📚  Quản lý Môn học", new Color(46, 204, 113));
+        JButton btnLogout = createMenuButton("🚪  Đăng xuất", new Color(127, 140, 141));
+
+
         menuPanel.add(btnSubjects);
         menuPanel.add(btnLogout);
 
@@ -49,9 +58,14 @@ public class AcademicAffairsHomeFrm extends JFrame {
         mainPanel.add(menuPanel, BorderLayout.CENTER);
         setContentPane(mainPanel);
 
-        btnSubjects.addActionListener((ActionEvent e) -> new SubjectFrm(currentUser).setVisible(true));
+        
+
+        btnSubjects.addActionListener((ActionEvent e) -> {
+            new SubjectFrm(currentUser).setVisible(true);
+        });
+
         btnLogout.addActionListener((ActionEvent e) -> {
-            dispose();
+            this.dispose();
             new LoginFrm().setVisible(true);
         });
     }
