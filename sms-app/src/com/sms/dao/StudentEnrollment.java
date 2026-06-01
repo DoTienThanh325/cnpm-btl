@@ -1,8 +1,9 @@
 package com.sms.dao;
 
+// Simple enrollment record (N-N relationship per spec: StudentEnrollment)
 public class StudentEnrollment {
-    private final int studentId;
-    private final int classSectionId;
+    private int studentId;
+    private int classSectionId;
 
     public StudentEnrollment(int studentId, int classSectionId) {
         this.studentId = studentId;

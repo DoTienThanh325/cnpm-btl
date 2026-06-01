@@ -1,30 +1,21 @@
 package com.sms.dao;
 
-import com.sms.db.DBConnection;
 import com.sms.entity.*;
-
 import java.sql.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
-public class SubjectDAO {
-
-    private static final String SELECT_BASE =
-            "SELECT s.id AS s_id, s.code AS s_code, s.name AS s_name, s.credits, " +
-            "       s.content, s.status AS s_status, " +
-            "       f.id AS f_id, f.code AS f_code, f.name AS f_name, f.head AS f_head " +
-            "FROM subjects s LEFT JOIN faculties f ON s.faculty_id = f.id";
-
+public class SubjectDAO extends DAO {
     public List<Subject> getAllSubjects() {
-        List<Subject> out = new ArrayList<>();
-        try (Connection c = DBConnection.get();
-             PreparedStatement ps = c.prepareStatement(SELECT_BASE + " ORDER BY s.id");
+        List<Subject> subjects = new ArrayList<>();
+        try (Connection conn = getConnection();
+             CallableStatement ps = conn.prepareCall(call("sp_get_all_subjects", 0));
              ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) out.add(map(rs));
+            while (rs.next()) subjects.add(loadTextbooks(conn, mapSubject(rs)));
+            return subjects;
         } catch (SQLException e) {
-            throw new RuntimeException("getAllSubjects failed", e);
+            throw dbError(e);
         }
-        attachTextbooks(out);
-        return out;
     }
 
     public List<Subject> getAllSubject() {
@@ -32,158 +23,123 @@ public class SubjectDAO {
     }
 
     public Subject getById(int id) {
-        Subject result;
-        try (Connection c = DBConnection.get();
-             PreparedStatement ps = c.prepareStatement(SELECT_BASE + " WHERE s.id = ?")) {
+        try (Connection conn = getConnection();
+             CallableStatement ps = conn.prepareCall(call("sp_get_subject_by_id", 1))) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
-                result = rs.next() ? map(rs) : null;
+                return rs.next() ? loadTextbooks(conn, mapSubject(rs)) : null;
             }
         } catch (SQLException e) {
-            throw new RuntimeException("getById subject failed", e);
+            throw dbError(e);
         }
-        if (result != null) attachTextbooks(Collections.singletonList(result));
-        return result;
     }
 
     public List<Subject> searchSubjects(String keyword) {
-        String kw = "%" + keyword.toLowerCase().trim() + "%";
-        List<Subject> out = new ArrayList<>();
-        try (Connection c = DBConnection.get();
-             PreparedStatement ps = c.prepareStatement(SELECT_BASE +
-                     " WHERE LOWER(s.name) LIKE ? OR LOWER(s.code) LIKE ? ORDER BY s.id")) {
-            ps.setString(1, kw);
-            ps.setString(2, kw);
+        List<Subject> subjects = new ArrayList<>();
+        try (Connection conn = getConnection();
+             CallableStatement ps = conn.prepareCall(call("sp_search_subjects", 1))) {
+            ps.setString(1, keyword.toLowerCase().trim());
             try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) out.add(map(rs));
+                while (rs.next()) subjects.add(loadTextbooks(conn, mapSubject(rs)));
             }
+            return subjects;
         } catch (SQLException e) {
-            throw new RuntimeException("searchSubjects failed", e);
+            throw dbError(e);
         }
-        attachTextbooks(out);
-        return out;
     }
 
     public boolean createSubject(Subject subject) {
-        String check = "SELECT 1 FROM subjects WHERE code = ?";
-        String insert = "INSERT INTO subjects (code, name, credits, content, faculty_id, status) " +
-                "VALUES (?, ?, ?, ?, ?, ?)";
-        try (Connection c = DBConnection.get()) {
-            try (PreparedStatement ps = c.prepareStatement(check)) {
-                ps.setString(1, subject.getCode());
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) return false;
-                }
-            }
-            int newId;
-            try (PreparedStatement ps = c.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)) {
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false);
+            try (CallableStatement ps = conn.prepareCall(call("sp_create_subject", 7))) {
                 ps.setString(1, subject.getCode());
                 ps.setString(2, subject.getName());
                 ps.setInt(3, subject.getCredits());
                 ps.setString(4, subject.getContent());
-                if (subject.getFaculty() != null) ps.setInt(5, subject.getFaculty().getId());
-                else ps.setNull(5, Types.INTEGER);
-                ps.setString(6, subject.getStatus() == null ? "active" : subject.getStatus());
+                ps.setInt(5, subject.getFaculty().getId());
+                ps.setString(6, subject.getStatus());
+                ps.registerOutParameter(7, Types.INTEGER);
                 ps.executeUpdate();
-                try (ResultSet keys = ps.getGeneratedKeys()) {
-                    if (!keys.next()) throw new SQLException("no subject id generated");
-                    newId = keys.getInt(1);
-                }
+                subject.setId(ps.getInt(7));
+                saveTextbooks(conn, subject);
+                conn.commit();
+                return true;
+            } catch (SQLException e) {
+                conn.rollback();
+                if (e instanceof SQLIntegrityConstraintViolationException) return false;
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
             }
-            subject.setId(newId);
-            replaceTextbookLinks(c, newId, subject.getTextbooks());
-            return true;
         } catch (SQLException e) {
-            throw new RuntimeException("createSubject failed", e);
+            throw dbError(e);
         }
     }
 
     public boolean updateSubject(Subject subject) {
-        String sql = "UPDATE subjects SET code = ?, name = ?, credits = ?, content = ?, " +
-                "faculty_id = ?, status = ? WHERE id = ?";
-        try (Connection c = DBConnection.get()) {
-            int rows;
-            try (PreparedStatement ps = c.prepareStatement(sql)) {
-                ps.setString(1, subject.getCode());
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false);
+            try (CallableStatement ps = conn.prepareCall(call("sp_update_subject", 6))) {
+                ps.setInt(1, subject.getId());
                 ps.setString(2, subject.getName());
                 ps.setInt(3, subject.getCredits());
                 ps.setString(4, subject.getContent());
-                if (subject.getFaculty() != null) ps.setInt(5, subject.getFaculty().getId());
-                else ps.setNull(5, Types.INTEGER);
+                ps.setInt(5, subject.getFaculty().getId());
                 ps.setString(6, subject.getStatus());
-                ps.setInt(7, subject.getId());
-                rows = ps.executeUpdate();
+                boolean updated = ps.executeUpdate() > 0;
+                try (CallableStatement del = conn.prepareCall(call("sp_delete_subject_textbooks", 1))) {
+                    del.setInt(1, subject.getId());
+                    del.executeUpdate();
+                }
+                saveTextbooks(conn, subject);
+                conn.commit();
+                return updated;
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
             }
-            replaceTextbookLinks(c, subject.getId(), subject.getTextbooks());
-            return rows > 0;
         } catch (SQLException e) {
-            throw new RuntimeException("updateSubject failed", e);
+            throw dbError(e);
         }
     }
 
     public boolean deleteSubject(int id) {
-        try (Connection c = DBConnection.get();
-             PreparedStatement ps = c.prepareStatement("DELETE FROM subjects WHERE id = ?")) {
+        try (Connection conn = getConnection();
+             CallableStatement ps = conn.prepareCall(call("sp_delete_subject", 1))) {
             ps.setInt(1, id);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            throw new RuntimeException("deleteSubject failed", e);
+            throw dbError(e);
         }
     }
 
-    private void attachTextbooks(List<Subject> subjects) {
-        if (subjects.isEmpty()) return;
-        Map<Integer, Subject> byId = new HashMap<>();
-        StringBuilder placeholders = new StringBuilder();
-        for (Subject s : subjects) {
-            if (placeholders.length() > 0) placeholders.append(',');
-            placeholders.append('?');
-            byId.put(s.getId(), s);
-        }
-        String sql = "SELECT st.subject_id, tb.id AS tb_id, tb.name AS tb_name, " +
-                "tb.author AS tb_author, tb.year AS tb_year " +
-                "FROM subject_textbooks st JOIN textbooks tb ON tb.id = st.textbook_id " +
-                "WHERE st.subject_id IN (" + placeholders + ")";
-        try (Connection c = DBConnection.get();
-             PreparedStatement ps = c.prepareStatement(sql)) {
-            int idx = 1;
-            for (Subject s : subjects) ps.setInt(idx++, s.getId());
+    private Subject loadTextbooks(Connection conn, Subject subject) throws SQLException {
+        try (CallableStatement ps = conn.prepareCall(call("sp_get_textbooks_by_subject", 1))) {
+            ps.setInt(1, subject.getId());
             try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    Subject s = byId.get(rs.getInt("subject_id"));
-                    if (s != null) s.getTextbooks().add(TextbookDAO.mapPrefixed(rs));
-                }
+                while (rs.next()) subject.getTextbooks().add(TextbookDAO.mapTextbook(rs));
             }
-        } catch (SQLException e) {
-            throw new RuntimeException("attachTextbooks failed", e);
         }
+        return subject;
     }
 
-    private void replaceTextbookLinks(Connection c, int subjectId, List<Textbook> textbooks) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("DELETE FROM subject_textbooks WHERE subject_id = ?")) {
-            ps.setInt(1, subjectId);
-            ps.executeUpdate();
-        }
-        if (textbooks == null || textbooks.isEmpty()) return;
-        try (PreparedStatement ps = c.prepareStatement(
-                "INSERT INTO subject_textbooks (subject_id, textbook_id) VALUES (?, ?)")) {
-            for (Textbook tb : textbooks) {
-                if (tb == null) continue;
-                ps.setInt(1, subjectId);
-                ps.setInt(2, tb.getId());
+    private void saveTextbooks(Connection conn, Subject subject) throws SQLException {
+        try (CallableStatement ps = conn.prepareCall(call("sp_add_subject_textbook", 2))) {
+            for (Textbook textbook : subject.getTextbooks()) {
+                ps.setInt(1, subject.getId());
+                ps.setInt(2, textbook.getId());
                 ps.addBatch();
             }
             ps.executeBatch();
         }
     }
 
-    static Subject map(ResultSet rs) throws SQLException {
-        Faculty f = null;
-        int fid = rs.getInt("f_id");
-        if (!rs.wasNull()) {
-            f = new Faculty(fid, rs.getString("f_code"), rs.getString("f_name"), rs.getString("f_head"));
-        }
-        return new Subject(rs.getInt("s_id"), rs.getString("s_code"), rs.getString("s_name"),
-                rs.getInt("credits"), rs.getString("content"), f, rs.getString("s_status"));
+    static Subject mapSubject(ResultSet rs) throws SQLException {
+        Faculty faculty = new Faculty(rs.getInt("faculty_id"), rs.getString("faculty_code"),
+                rs.getString("faculty_name"), rs.getString("head"));
+        return new Subject(rs.getInt("id"), rs.getString("code"), rs.getString("name"),
+                rs.getInt("credits"), rs.getString("content"), faculty, rs.getString("status"));
     }
 }

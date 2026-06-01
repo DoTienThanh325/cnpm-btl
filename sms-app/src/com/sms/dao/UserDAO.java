@@ -1,113 +1,92 @@
 package com.sms.dao;
 
-import com.sms.db.DBConnection;
 import com.sms.entity.User;
-
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class UserDAO {
-
+public class UserDAO extends DAO {
     public User checkLogin(String username, String password) {
-        String sql = "SELECT id, username, password, name, role, status FROM users " +
-                "WHERE username = ? AND password = ? AND status = 'active'";
-        try (Connection c = DBConnection.get();
-             PreparedStatement ps = c.prepareStatement(sql)) {
+        try (Connection conn = getConnection();
+             CallableStatement ps = conn.prepareCall(call("sp_check_login", 2))) {
             ps.setString(1, username);
             ps.setString(2, password);
             try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? map(rs) : null;
+                return rs.next() ? mapUser(rs) : null;
             }
         } catch (SQLException e) {
-            throw new RuntimeException("checkLogin failed", e);
+            throw dbError(e);
         }
     }
 
     public List<User> getAllUsers() {
-        List<User> out = new ArrayList<>();
-        String sql = "SELECT id, username, password, name, role, status FROM users ORDER BY id";
-        try (Connection c = DBConnection.get();
-             PreparedStatement ps = c.prepareStatement(sql);
+        List<User> users = new ArrayList<>();
+        try (Connection conn = getConnection();
+             CallableStatement ps = conn.prepareCall(call("sp_get_all_users", 0));
              ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) out.add(map(rs));
+            while (rs.next()) users.add(mapUser(rs));
+            return users;
         } catch (SQLException e) {
-            throw new RuntimeException("getAllUsers failed", e);
+            throw dbError(e);
         }
-        return out;
     }
 
     public List<User> searchUsers(String keyword) {
-        String kw = "%" + keyword.toLowerCase().trim() + "%";
-        String sql = "SELECT id, username, password, name, role, status FROM users " +
-                "WHERE LOWER(name) LIKE ? OR LOWER(username) LIKE ? OR CAST(id AS CHAR) LIKE ? " +
-                "ORDER BY id";
-        List<User> out = new ArrayList<>();
-        try (Connection c = DBConnection.get();
-             PreparedStatement ps = c.prepareStatement(sql)) {
+        List<User> users = new ArrayList<>();
+        String kw = keyword.toLowerCase().trim();
+        try (Connection conn = getConnection();
+             CallableStatement ps = conn.prepareCall(call("sp_search_users", 1))) {
             ps.setString(1, kw);
-            ps.setString(2, kw);
-            ps.setString(3, kw);
             try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) out.add(map(rs));
+                while (rs.next()) users.add(mapUser(rs));
             }
+            return users;
         } catch (SQLException e) {
-            throw new RuntimeException("searchUsers failed", e);
+            throw dbError(e);
         }
-        return out;
     }
 
     public boolean addUser(User user) {
-        String check = "SELECT 1 FROM users WHERE username = ?";
-        String insert = "INSERT INTO users (username, password, name, role, status) VALUES (?, ?, ?, ?, ?)";
-        try (Connection c = DBConnection.get()) {
-            try (PreparedStatement ps = c.prepareStatement(check)) {
-                ps.setString(1, user.getUsername());
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) return false;
-                }
-            }
-            try (PreparedStatement ps = c.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)) {
-                ps.setString(1, user.getUsername());
-                ps.setString(2, user.getPassword());
-                ps.setString(3, user.getName());
-                ps.setString(4, user.getRole());
-                ps.setString(5, user.getStatus() == null ? "active" : user.getStatus());
-                ps.executeUpdate();
-                try (ResultSet keys = ps.getGeneratedKeys()) {
-                    if (keys.next()) user.setId(keys.getInt(1));
-                }
-            }
+        try (Connection conn = getConnection();
+             CallableStatement ps = conn.prepareCall(call("sp_add_user", 6))) {
+            ps.setString(1, user.getUsername());
+            ps.setString(2, user.getPassword());
+            ps.setString(3, user.getName());
+            ps.setString(4, user.getRole());
+            ps.setString(5, user.getStatus());
+            ps.registerOutParameter(6, Types.INTEGER);
+            ps.executeUpdate();
+            user.setId(ps.getInt(6));
             return true;
+        } catch (SQLIntegrityConstraintViolationException e) {
+            return false;
         } catch (SQLException e) {
-            throw new RuntimeException("addUser failed", e);
+            throw dbError(e);
         }
     }
 
     public boolean deleteUser(int id) {
-        String sql = "DELETE FROM users WHERE id = ?";
-        try (Connection c = DBConnection.get();
-             PreparedStatement ps = c.prepareStatement(sql)) {
+        try (Connection conn = getConnection();
+             CallableStatement ps = conn.prepareCall(call("sp_delete_user", 1))) {
             ps.setInt(1, id);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            throw new RuntimeException("deleteUser failed", e);
+            throw dbError(e);
         }
     }
 
     public boolean updateUserRole(int id, String role) {
-        String sql = "UPDATE users SET role = ? WHERE id = ?";
-        try (Connection c = DBConnection.get();
-             PreparedStatement ps = c.prepareStatement(sql)) {
+        try (Connection conn = getConnection();
+             CallableStatement ps = conn.prepareCall(call("sp_update_user_role", 2))) {
             ps.setString(1, role);
             ps.setInt(2, id);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            throw new RuntimeException("updateUserRole failed", e);
+            throw dbError(e);
         }
     }
 
-    static User map(ResultSet rs) throws SQLException {
+    static User mapUser(ResultSet rs) throws SQLException {
         return new User(rs.getInt("id"), rs.getString("username"), rs.getString("password"),
                 rs.getString("name"), rs.getString("role"), rs.getString("status"));
     }

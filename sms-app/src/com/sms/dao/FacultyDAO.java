@@ -1,42 +1,36 @@
 package com.sms.dao;
 
-import com.sms.db.DBConnection;
 import com.sms.entity.Faculty;
-
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class FacultyDAO {
-
+public class FacultyDAO extends DAO {
     public List<Faculty> getAllFaculties() {
-        List<Faculty> out = new ArrayList<>();
-        String sql = "SELECT id, code, name, head FROM faculties ORDER BY id";
-        try (Connection c = DBConnection.get();
-             PreparedStatement ps = c.prepareStatement(sql);
+        List<Faculty> faculties = new ArrayList<>();
+        try (Connection conn = getConnection();
+             CallableStatement ps = conn.prepareCall(call("sp_get_all_faculties", 0));
              ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) out.add(map(rs));
+            while (rs.next()) faculties.add(mapFaculty(rs));
+            return faculties;
         } catch (SQLException e) {
-            throw new RuntimeException("getAllFaculties failed", e);
+            throw dbError(e);
         }
-        return out;
     }
 
     public Faculty getById(int id) {
-        String sql = "SELECT id, code, name, head FROM faculties WHERE id = ?";
-        try (Connection c = DBConnection.get();
-             PreparedStatement ps = c.prepareStatement(sql)) {
+        try (Connection conn = getConnection();
+             CallableStatement ps = conn.prepareCall(call("sp_get_faculty_by_id", 1))) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? map(rs) : null;
+                return rs.next() ? mapFaculty(rs) : null;
             }
         } catch (SQLException e) {
-            throw new RuntimeException("getById faculty failed", e);
+            throw dbError(e);
         }
     }
 
-    static Faculty map(ResultSet rs) throws SQLException {
-        return new Faculty(rs.getInt("id"), rs.getString("code"),
-                rs.getString("name"), rs.getString("head"));
+    static Faculty mapFaculty(ResultSet rs) throws SQLException {
+        return new Faculty(rs.getInt("id"), rs.getString("code"), rs.getString("name"), rs.getString("head"));
     }
 }
