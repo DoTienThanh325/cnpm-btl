@@ -36,9 +36,17 @@ public class EditGradeFrm extends JFrame {
     private List<Grade> grades;
 
     public EditGradeFrm(JFrame parent, ClassSection cs) {
+        this(parent, cs, new StudentDAO(), new GradeDAO(), new ClassSectionDAO());
+    }
+
+    // Injectable constructor for testing
+    public EditGradeFrm(JFrame parent, ClassSection cs, StudentDAO studentDAO, GradeDAO gradeDAO, ClassSectionDAO classDAO) {
         this.parentFrm = parent;
         this.classSection = cs;
-        setTitle("Sửa điểm - Lớp " + cs.getCode());
+        this.studentDAO = studentDAO;
+        this.gradeDAO = gradeDAO;
+        this.classDAO = classDAO;
+        setTitle("Sửa điểm - Lớp " + (cs != null ? cs.getCode() : ""));
         setSize(750, 480);
         setLocationRelativeTo(parent);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -68,6 +76,7 @@ public class EditGradeFrm extends JFrame {
             }
         };
         tblGrades = new JTable(tableModel);
+        tblGrades.setName("tblGrades");
         tblGrades.setRowHeight(28);
         tblGrades.getTableHeader().setFont(new Font("Arial", Font.BOLD, 12));
         tblGrades.setFont(new Font("Arial", Font.PLAIN, 12));
@@ -89,11 +98,13 @@ public class EditGradeFrm extends JFrame {
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 5));
         bottomPanel.setBackground(new Color(236, 240, 241));
         btnSave = new JButton("Lưu");
+        btnSave.setName("btnSave");
         btnSave.setBackground(new Color(46, 204, 113));
         btnSave.setForeground(Color.WHITE);
         btnSave.setFocusPainted(false);
         btnSave.setFont(new Font("Arial", Font.BOLD, 13));
         btnBack = new JButton("Quay lại");
+        btnBack.setName("btnBack");
         btnBack.setBackground(new Color(127, 140, 141));
         btnBack.setForeground(Color.WHITE);
         btnBack.setFocusPainted(false);
@@ -107,6 +118,11 @@ public class EditGradeFrm extends JFrame {
 
         btnSave.addActionListener(e -> actionPerformed());
         btnBack.addActionListener(e -> dispose());
+    }
+
+    // Expose save action for tests
+    public void performSaveForTest() {
+        actionPerformed();
     }
 
     private void loadData() {
@@ -140,6 +156,9 @@ public class EditGradeFrm extends JFrame {
                 double midterm = Double.parseDouble(tableModel.getValueAt(i, 4).toString());
                 double finalScore = Double.parseDouble(tableModel.getValueAt(i, 5).toString());
 
+                if (Double.isNaN(attendance) || Double.isNaN(midterm) || Double.isNaN(finalScore)) {
+                    JOptionPane.showMessageDialog(this, "Điểm không hợp lệ tại dòng " + (i + 1), "Lỗi", JOptionPane.ERROR_MESSAGE); return;
+                }
                 if (attendance < 0 || attendance > 10 || midterm < 0 || midterm > 10 || finalScore < 0 || finalScore > 10) {
                     JOptionPane.showMessageDialog(this, "Điểm phải trong khoảng 0-10!", "Lỗi", JOptionPane.ERROR_MESSAGE); return;
                 }

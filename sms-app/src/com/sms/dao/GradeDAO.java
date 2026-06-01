@@ -55,6 +55,13 @@ public class GradeDAO extends DAO {
     }
 
     public boolean updateGrade(Grade grade) {
+        if (grade.getAttendanceScore() < 0 || grade.getAttendanceScore() > 10 ||
+            grade.getMidtermScore() < 0 || grade.getMidtermScore() > 10 ||
+            grade.getFinalScore() < 0 || grade.getFinalScore() > 10) {
+            
+            return false; 
+        }
+        
         String sql = "UPDATE grades SET attendance_score = ?, midterm_score = ?, final_score = ?, semester = ? WHERE id = ?";
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
