@@ -51,32 +51,24 @@ public class LoginFrm extends JFrame {
 
         JLabel lblUser = new JLabel("Tên đăng nhập:");
         lblUser.setFont(new Font("Arial", Font.PLAIN, 13));
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.weightx = 0.3;
+        gbc.gridx = 0; gbc.gridy = 0; gbc.weightx = 0.3;
         formPanel.add(lblUser, gbc);
 
         txtUsername = new JTextField();
         txtUsername.setFont(new Font("Arial", Font.PLAIN, 13));
         txtUsername.setPreferredSize(new Dimension(180, 30));
-        gbc.gridx = 1;
-        gbc.gridy = 0;
-        gbc.weightx = 0.7;
+        gbc.gridx = 1; gbc.gridy = 0; gbc.weightx = 0.7;
         formPanel.add(txtUsername, gbc);
 
         JLabel lblPass = new JLabel("Mật khẩu:");
         lblPass.setFont(new Font("Arial", Font.PLAIN, 13));
-        gbc.gridx = 0;
-        gbc.gridy = 1;
-        gbc.weightx = 0.3;
+        gbc.gridx = 0; gbc.gridy = 1; gbc.weightx = 0.3;
         formPanel.add(lblPass, gbc);
 
         txtPassword = new JPasswordField();
         txtPassword.setFont(new Font("Arial", Font.PLAIN, 13));
         txtPassword.setPreferredSize(new Dimension(180, 30));
-        gbc.gridx = 1;
-        gbc.gridy = 1;
-        gbc.weightx = 0.7;
+        gbc.gridx = 1; gbc.gridy = 1; gbc.weightx = 0.7;
         formPanel.add(txtPassword, gbc);
 
         btnLogin = new JButton("Đăng nhập");
@@ -85,19 +77,14 @@ public class LoginFrm extends JFrame {
         btnLogin.setForeground(Color.WHITE);
         btnLogin.setFocusPainted(false);
         btnLogin.setPreferredSize(new Dimension(120, 35));
-        gbc.gridx = 0;
-        gbc.gridy = 2;
-        gbc.gridwidth = 2;
-        gbc.anchor = GridBagConstraints.CENTER;
+        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 2; gbc.anchor = GridBagConstraints.CENTER;
         formPanel.add(btnLogin, gbc);
 
         // hint label
         JLabel lblHint = new JLabel("Gợi ý: admin/admin123 | pdt01/pdt123 | gv01/gv123 | sv01/sv123", JLabel.CENTER);
         lblHint.setFont(new Font("Arial", Font.ITALIC, 10));
         lblHint.setForeground(Color.GRAY);
-        gbc.gridx = 0;
-        gbc.gridy = 3;
-        gbc.gridwidth = 2;
+        gbc.gridx = 0; gbc.gridy = 3; gbc.gridwidth = 2;
         formPanel.add(lblHint, gbc);
 
         mainPanel.add(headerPanel, BorderLayout.NORTH);
@@ -126,18 +113,18 @@ public class LoginFrm extends JFrame {
         // per spec: redirect based on role
         this.dispose();
         switch (user.getRole()) {
-            // case "ADMIN":
-            //     new AdminHomeFrm(user).setVisible(true);
-            //     break;
+            case "ADMIN":
+                new AdminHomeFrm(user).setVisible(true);
+                break;
             case "PDT":
                 new AcademicAffairsHomeFrm(user).setVisible(true);
                 break;
-            // case "TEACHER":
-            //     new TeacherHomeFrm(user).setVisible(true);
-            //     break;
-            // case "STUDENT":
-            //     new StudentHomeFrm(user).setVisible(true);
-            //     break;
+            case "TEACHER":
+                new TeacherHomeFrm(user).setVisible(true);
+                break;
+            case "STUDENT":
+                new StudentHomeFrm(user).setVisible(true);
+                break;
             default:
                 JOptionPane.showMessageDialog(this, "Vai trò không hợp lệ!", "Lỗi", JOptionPane.ERROR_MESSAGE);
         }

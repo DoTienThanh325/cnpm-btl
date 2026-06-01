@@ -9,8 +9,7 @@ import java.awt.event.ActionEvent;
 
 /**
  * AcademicAffairsHomeFrm (PDTHomeFrm) - per spec section C.3.1 and C.3.4
- * Has buttons: Quản lý SV, Quản lý Môn học, Quản lý Lớp, Quản lý Điểm, Quản lý
- * Học phí
+ * Has buttons: Quản lý SV, Quản lý Môn học, Quản lý Lớp, Quản lý Điểm, Quản lý Học phí
  */
 public class AcademicAffairsHomeFrm extends JFrame {
 
@@ -47,21 +46,43 @@ public class AcademicAffairsHomeFrm extends JFrame {
         menuPanel.setBackground(new Color(236, 240, 241));
         menuPanel.setBorder(new EmptyBorder(40, 60, 40, 60));
 
+        JButton btnStudents = createMenuButton("👨‍🎓  Quản lý Sinh viên", new Color(52, 152, 219));
         JButton btnSubjects = createMenuButton("📚  Quản lý Môn học", new Color(46, 204, 113));
+        JButton btnClasses = createMenuButton("🏫  Quản lý Lớp học phần", new Color(230, 126, 34));
+        JButton btnGrades = createMenuButton("📊  Quản lý Điểm", new Color(155, 89, 182));
+        JButton btnTuition = createMenuButton("💰  Quản lý Học phí", new Color(231, 76, 60));
         JButton btnLogout = createMenuButton("🚪  Đăng xuất", new Color(127, 140, 141));
 
-
+        menuPanel.add(btnStudents);
         menuPanel.add(btnSubjects);
+        menuPanel.add(btnClasses);
+        menuPanel.add(btnGrades);
+        menuPanel.add(btnTuition);
         menuPanel.add(btnLogout);
 
         mainPanel.add(headerPanel, BorderLayout.NORTH);
         mainPanel.add(menuPanel, BorderLayout.CENTER);
         setContentPane(mainPanel);
 
-        
+        // Action listeners per spec
+        btnStudents.addActionListener((ActionEvent e) -> {
+            new StudentManagementFrm(currentUser).setVisible(true);
+        });
 
         btnSubjects.addActionListener((ActionEvent e) -> {
             new SubjectFrm(currentUser).setVisible(true);
+        });
+
+        btnClasses.addActionListener((ActionEvent e) -> {
+            new ManageClassFrm(currentUser).setVisible(true);
+        });
+
+        btnGrades.addActionListener((ActionEvent e) -> {
+            new SearchClassForGradeFrm(currentUser, false).setVisible(true);
+        });
+
+        btnTuition.addActionListener((ActionEvent e) -> {
+            new TuitionManagementFrm(currentUser).setVisible(true);
         });
 
         btnLogout.addActionListener((ActionEvent e) -> {
